@@ -1,0 +1,27 @@
+# --- Secrets & environment ---
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+secrets/
+
+# --- OS ---
+.DS_Store
+Thumbs.db
+
+# --- IDEs ---
+.idea/
+.vscode/
+*.iml
+*.swp
+
+# --- Logs & runtime ---
+logs/
+*.log
+
+# --- Load test output ---
+docs/performance/raw/*.json
+
+# --- Stack-specific entries ---
+# Add after choosing the stack (e.g. target/, node_modules/, __pycache__/, .venv/)
