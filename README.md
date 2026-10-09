@@ -1,10 +1,10 @@
-# Qaryati – Palestinian Villages Knowledge Platform
+# Qaryati Palestinian Villages Knowledge Platform
 
 API-centric backend for structured, source-backed information about Palestinian villages.
 Advanced Software Engineering – Fall 2026 (Dr. Amjad AbuHassan).
 
 ## Status
-🚧 Project setup phase.
+Project setup phase.
 
 ## Team
 | Name | GitHub | Main modules |
