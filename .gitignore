@@ -23,5 +23,8 @@ logs/
 # --- Load test output ---
 docs/performance/raw/*.json
 
-# --- Stack-specific entries ---
-# Add after choosing the stack (e.g. target/, node_modules/, __pycache__/, .venv/)
+# --- Node / build output ---
+node_modules/
+dist/
+coverage/
+*.tsbuildinfo
