@@ -17,7 +17,7 @@
 | `refactor/` | Code restructuring, no behavior change | `refactor/extract-geocoding-port` |
 | `docs/` | Documentation and ADRs | `docs/adr-003-conflicting-data` |
 | `test/` | Tests only | `test/village-repository-integration` |
-| `chore/` | Build, Docker, CI, dependencies | `chore/docker-compose-postgres` |
+| `chore/` | Build, Docker, CI, dependencies | `chore/docker-compose-mysql` |
 | `perf/` | Performance work | `perf/index-village-name-search` |
 
 ## Commit messages (Conventional Commits)
@@ -33,7 +33,7 @@ Good:
 ```
 feat(population): reject records with a future reference year
 fix(auth): return 401 instead of 500 on expired token
-perf(villages): add trigram index for name search
+perf(villages): add full-text index for name search
 ```
 Bad: `update`, `fixed stuff`, `final version`, `wip`.
 
