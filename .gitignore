@@ -28,3 +28,6 @@ node_modules/
 dist/
 coverage/
 *.tsbuildinfo
+/src/generated/prisma
+# --- Prisma generated client (rebuilt by `prisma generate`) ---
+src/generated/
