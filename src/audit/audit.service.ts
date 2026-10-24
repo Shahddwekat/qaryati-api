@@ -1,10 +1,7 @@
 
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import {
-  AuditAction,
-  Prisma,
-} from '../generated/prisma/client';
+import { AuditAction, Prisma } from '../generated/prisma/client';
 
 type CreateAuditLogInput = {
   userId: number | null;
@@ -21,7 +18,7 @@ export class AuditService {
   constructor(private readonly prisma: PrismaService) {}
 
   async createLog(data: CreateAuditLogInput) {
-    return this.prisma.auditLog.create({
+    const log = await this.prisma.auditLog.create({
       data: {
         userId: data.userId,
         action: data.action,
@@ -32,10 +29,15 @@ export class AuditService {
         ipAddress: data.ipAddress,
       },
     });
+
+    return {
+      ...log,
+      id: log.id.toString(),
+    };
   }
 
   async findAll(skip = 0, take = 20) {
-    return this.prisma.auditLog.findMany({
+    const logs = await this.prisma.auditLog.findMany({
       skip,
       take,
       orderBy: {
@@ -53,5 +55,10 @@ export class AuditService {
         createdAt: true,
       },
     });
+
+    return logs.map((log) => ({
+      ...log,
+      id: log.id.toString(),
+    }));
   }
 }
