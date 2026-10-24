@@ -51,9 +51,8 @@ erDiagram
     text name_origin
     int governorate_id FK
     int municipality_id FK "nullable"
-    decimal latitude "required"
-    decimal longitude "required"
-    point location "generated from lat/lng, SRID 4326, SPATIAL INDEX"
+    decimal latitude "required, CHECK -90..90"
+    decimal longitude "required, CHECK -180..180, INDEX (latitude, longitude)"
     text location_description
     int elevation_m
     decimal area_dunum
@@ -102,7 +101,7 @@ erDiagram
     decimal latitude "optional"
     decimal longitude "optional"
     varchar period
-    enum condition "GOOD | DAMAGED | DESTROYED | UNKNOWN"
+    enum current_condition "GOOD | DAMAGED | DESTROYED | UNKNOWN"
     int source_id FK "required"
   }
   cultural_traits {
@@ -145,9 +144,9 @@ erDiagram
   }
 ```
 
-"Nearby villages" is **not** stored as a table. It is computed on request with
-`ST_Distance_Sphere` on `villages.location`, using the spatial index, so distances can never go
-stale.
+"Nearby villages" is **not** stored as a table. It is computed on request: a bounding box on the
+`(latitude, longitude)` index narrows the candidates, then `ST_Distance_Sphere` gives the exact
+distance (see [ADR-0006](../adr/0006-nearby-villages-from-coordinates.md)). Distances can never go stale.
 
 ---
 
@@ -224,8 +223,8 @@ erDiagram
     enum action "CREATE | UPDATE | DELETE | RESTORE | VERIFY | REJECT | SET_PREFERRED"
     varchar entity_type
     int entity_id
-    json before
-    json after
+    json before_data
+    json after_data
     varchar ip_address
     datetime created_at
   }
@@ -242,8 +241,8 @@ or custom migration SQL (see ADR-0003):
 
 | Feature | Table / column | Why Prisma alone is not enough |
 |---|---|---|
-| Generated `POINT` column + spatial index | `villages.location` | Prisma has no spatial types (`Unsupported("point")`) |
-| Nearby villages | `ST_Distance_Sphere(location, ?)` | spatial function |
-| Name search | `FULLTEXT(village_names.name)` + `MATCH … AGAINST` | Prisma's MySQL full-text support is a preview feature |
+| Nearby villages | bounding box on `(latitude, longitude)` + `ST_Distance_Sphere(POINT(longitude, latitude), POINT(?, ?))` | spatial function, distance ordering (ADR-0006) |
+| Name search ranking | `MATCH(village_names.name) AGAINST(?)` | relevance score and ordering (the `FULLTEXT` index itself is declared with `@@fulltext` in Prisma) |
+| Data rules | `CHECK` constraints (coordinates, year ranges, self-relation, preferred flag) | Prisma cannot declare `CHECK` constraints, so they are added in the migration SQL |
 | Population trends report | `population_records` grouped by year | aggregate reporting query |
 | Only one preferred row per group | unique index on nullable `is_preferred` | relies on MySQL treating NULLs as distinct |

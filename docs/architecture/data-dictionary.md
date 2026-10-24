@@ -74,9 +74,8 @@ Constraints: UNIQUE `(governorate_id, name_ar)`.
 | name_origin | TEXT | YES | meaning and origin of the name |
 | governorate_id | INT FK → governorates | NO | most common filter |
 | municipality_id | INT FK → municipalities | YES | local authority, if known |
-| latitude | DECIMAL(9,6) | NO | required; geocoded if the contributor does not provide it |
-| longitude | DECIMAL(9,6) | NO | required |
-| location | POINT SRID 4326 | NO | `GENERATED ALWAYS AS (ST_SRID(POINT(latitude, longitude), 4326)) STORED`. SRID 4326 is latitude-first in MySQL 8 |
+| latitude | DECIMAL(9,6) | NO | required; geocoded if the contributor does not provide it. `CHECK (latitude BETWEEN -90 AND 90)` |
+| longitude | DECIMAL(9,6) | NO | required. `CHECK (longitude BETWEEN -180 AND 180)` |
 | location_description | TEXT | YES | |
 | elevation_m | INT | YES | |
 | area_dunum | DECIMAL(10,2) | YES | |
@@ -85,7 +84,7 @@ Constraints: UNIQUE `(governorate_id, name_ar)`.
 Indexes:
 - `(governorate_id, name_ar)` for filter + sort
 - `(municipality_id)`
-- `SPATIAL (location)` for nearby villages
+- `(latitude, longitude)` for the nearby-villages bounding box (ADR-0006)
 - `(deleted_at)`
 
 Rules:
@@ -108,6 +107,7 @@ All names of a village: current, English, historical, transliterations and alter
 Constraints:
 - UNIQUE `(village_id, name, type)`
 - UNIQUE `(village_id, language, type, is_preferred)`, one preferred name per language and type
+- `CHECK (is_preferred IS NULL OR is_preferred = 1)`
 
 ### `village_relations`
 Non-distance relationships between villages.
@@ -123,6 +123,7 @@ Non-distance relationships between villages.
 Constraints:
 - UNIQUE `(village_id, related_village_id, type)`
 - `CHECK (village_id <> related_village_id)`
+- Both foreign keys use `ON UPDATE RESTRICT`: MySQL does not allow a `CHECK` on columns used by a cascading foreign key
 
 ---
 
@@ -143,6 +144,7 @@ One row means "according to source X, village Y had Z people in year N".
 Constraints:
 - UNIQUE `(village_id, year, source_id)`: one number per source per year
 - UNIQUE `(village_id, year, is_preferred)`: one preferred number per village and year
+- `CHECK (is_preferred IS NULL OR is_preferred = 1)`
 
 Index: `(village_id, year)` for population-over-time reports.
 
@@ -182,7 +184,7 @@ Index `(village_id, event_id)` for a village's timeline.
 | description | TEXT | YES | |
 | latitude / longitude | DECIMAL(9,6) | YES | optional, not every landmark has a known spot |
 | period | VARCHAR(100) | YES | e.g. "Ottoman era" |
-| condition | ENUM(`GOOD`,`DAMAGED`,`DESTROYED`,`UNKNOWN`) | NO | default `UNKNOWN` |
+| current_condition | ENUM(`GOOD`,`DAMAGED`,`DESTROYED`,`UNKNOWN`) | NO | default `UNKNOWN` |
 | + provenance block (source required) | | | |
 
 Index: `(village_id, type)`.
@@ -208,7 +210,7 @@ Index: `(village_id, category)`.
 | name | VARCHAR(200) | NO | e.g. "Olive growing" |
 | description | TEXT | YES | |
 | importance | ENUM(`MAIN`,`SECONDARY`) | NO | |
-| year_from / year_to | SMALLINT | YES | when the activity was practised |
+| year_from / year_to | SMALLINT | YES | when the activity was practised. `CHECK (year_to IS NULL OR year_to >= year_from)` |
 | + provenance block (source required) | | | |
 
 Index: `(village_id, type)`.
@@ -293,8 +295,8 @@ Append-only change history. The application never updates or deletes rows.
 | action | ENUM(`CREATE`,`UPDATE`,`DELETE`,`RESTORE`,`VERIFY`,`REJECT`,`SET_PREFERRED`) | NO | |
 | entity_type | VARCHAR(50) | NO | e.g. `population_record` |
 | entity_id | INT UNSIGNED | NO | |
-| before | JSON | YES | `NULL` on create |
-| after | JSON | YES | `NULL` on delete |
+| before_data | JSON | YES | `NULL` on create (`BEFORE` is a reserved word in MySQL) |
+| after_data | JSON | YES | `NULL` on delete (`AFTER` is a reserved word in MySQL) |
 | ip_address | VARCHAR(45) | YES | IPv4 or IPv6 |
 | created_at | DATETIME(3) | NO | |
 
