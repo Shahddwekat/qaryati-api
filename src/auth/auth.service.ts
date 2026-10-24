@@ -8,13 +8,46 @@ import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../prisma/prisma.service';
 import { Prisma } from '../generated/prisma/client';
 import * as bcrypt from 'bcryptjs';
+import { createHash, randomBytes } from 'node:crypto';
 
 @Injectable()
 export class AuthService {
+  private readonly refreshTokenDays = 7;
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwtService: JwtService,
   ) {}
+
+  private hashRefreshToken(token: string): string {
+    return createHash('sha256').update(token).digest('hex');
+  }
+
+  private generateRefreshToken(): string {
+    return randomBytes(48).toString('hex');
+  }
+
+  private getRefreshExpiry(): Date {
+    const expiry = new Date();
+
+    expiry.setDate(
+      expiry.getDate() + this.refreshTokenDays,
+    );
+
+    return expiry;
+  }
+
+  private async createAccessToken(user: {
+    id: number;
+    email: string;
+    role: string;
+  }): Promise<string> {
+    return this.jwtService.signAsync({
+      sub: user.id,
+      email: user.email,
+      role: user.role,
+    });
+  }
 
   async register(
     email: string,
@@ -56,6 +89,7 @@ export class AuthService {
       ) {
         throw new ConflictException('Email already registered');
       }
+
       throw error;
     }
   }
@@ -80,11 +114,17 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    const accessToken = await this.jwtService.signAsync({
-      sub: user.id,
-      email: user.email,
-      role: user.role,
+    const refreshToken = this.generateRefreshToken();
+
+    await this.prisma.refreshToken.create({
+      data: {
+        userId: user.id,
+        tokenHash: this.hashRefreshToken(refreshToken),
+        expiresAt: this.getRefreshExpiry(),
+      },
     });
+
+    const accessToken = await this.createAccessToken(user);
 
     await this.prisma.user.update({
       where: { id: user.id },
@@ -93,6 +133,7 @@ export class AuthService {
 
     return {
       accessToken,
+      refreshToken,
       tokenType: 'Bearer',
       user: {
         id: user.id,
@@ -100,6 +141,92 @@ export class AuthService {
         fullName: user.fullName,
         role: user.role,
       },
+    };
+  }
+
+  async refresh(refreshToken: string) {
+    if (!refreshToken) {
+      throw new UnauthorizedException('Invalid refresh token');
+    }
+
+    const tokenHash = this.hashRefreshToken(refreshToken);
+
+    const existingToken =
+      await this.prisma.refreshToken.findFirst({
+        where: {
+          tokenHash,
+          revokedAt: null,
+          expiresAt: {
+            gt: new Date(),
+          },
+        },
+        include: {
+          user: true,
+        },
+      });
+
+    if (!existingToken || !existingToken.user.isActive) {
+      throw new UnauthorizedException('Invalid refresh token');
+    }
+
+    const newRefreshToken = this.generateRefreshToken();
+    const now = new Date();
+
+    await this.prisma.$transaction(async (tx) => {
+      const revoked = await tx.refreshToken.updateMany({
+        where: {
+          id: existingToken.id,
+          revokedAt: null,
+          expiresAt: {
+            gt: now,
+          },
+        },
+        data: {
+          revokedAt: now,
+        },
+      });
+
+      if (revoked.count !== 1) {
+        throw new UnauthorizedException(
+          'Refresh token already used or expired',
+        );
+      }
+
+      await tx.refreshToken.create({
+        data: {
+          userId: existingToken.userId,
+          tokenHash: this.hashRefreshToken(newRefreshToken),
+          expiresAt: this.getRefreshExpiry(),
+        },
+      });
+    });
+
+    const accessToken = await this.createAccessToken(
+      existingToken.user,
+    );
+
+    return {
+      accessToken,
+      refreshToken: newRefreshToken,
+      tokenType: 'Bearer',
+    };
+  }
+
+  async logout(refreshToken: string) {
+    if (refreshToken) {
+      await this.prisma.refreshToken.updateMany({
+        where: {
+          tokenHash: this.hashRefreshToken(refreshToken),
+          revokedAt: null,
+        },
+        data: {
+          revokedAt: new Date(),
+        },
+      });
+    }
+
+    return {
+      message: 'Logged out successfully',
     };
   }
 }
