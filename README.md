@@ -5,7 +5,7 @@ Advanced Software Engineering
 
 ## Status
 Walking skeleton: NestJS + MySQL 8.4 (Docker) + Prisma 7, with a `/health` endpoint.
-Database schema: 16 tables with the initial migration.
+Database schema: 16 tables with the initial migration, plus development seed data.
 
 ## Team
 | Name | GitHub | Main modules |
@@ -37,12 +37,27 @@ Requirements: **Node.js 24+** and **Docker Desktop**.
    ```
    npx prisma migrate dev
    ```
-5. Start the API in watch mode:
+5. Fill the database with development data (safe to run more than once):
+   ```
+   npx prisma db seed
+   ```
+6. Start the API in watch mode:
    ```
    npm run start:dev
    ```
-6. Check it works: open http://localhost:3000/health and you should see
+7. Check it works: open http://localhost:3000/health and you should see
    `{"status":"ok","database":"up"}`
+
+### Development accounts (from the seed)
+All use the password from `SEED_USER_PASSWORD` in `.env` (default `Password123!`).
+
+| Email | Role |
+|---|---|
+| `admin@qaryati.local` | ADMIN |
+| `verifier@qaryati.local` | VERIFIER |
+| `contributor@qaryati.local` | CONTRIBUTOR |
+
+Seed population figures and sources are **sample data, not real**.
 
 Useful commands:
 | Command | What it does |
@@ -51,6 +66,7 @@ Useful commands:
 | `docker compose down -v` | delete the database completely (start fresh) |
 | `npx prisma generate` | regenerate the Prisma client after editing `schema.prisma` |
 | `npx prisma migrate dev --name <change>` | after editing `schema.prisma`: create and apply a new migration |
+| `npx prisma db seed` | add the development data again |
 
 ## Documentation
 - [Contributing guide](CONTRIBUTING.md)
