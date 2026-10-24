@@ -5,6 +5,7 @@ Advanced Software Engineering
 
 ## Status
 Walking skeleton: NestJS + MySQL 8.4 (Docker) + Prisma 7, with a `/health` endpoint.
+Database schema: 16 tables with the initial migration.
 
 ## Team
 | Name | GitHub | Main modules |
@@ -32,11 +33,15 @@ Requirements: **Node.js 24+** and **Docker Desktop**.
    ```
    docker compose up -d
    ```
-4. Start the API in watch mode:
+4. Create the tables (run again whenever someone adds a new migration):
+   ```
+   npx prisma migrate dev
+   ```
+5. Start the API in watch mode:
    ```
    npm run start:dev
    ```
-5. Check it works: open http://localhost:3000/health and you should see
+6. Check it works: open http://localhost:3000/health and you should see
    `{"status":"ok","database":"up"}`
 
 Useful commands:
@@ -45,6 +50,7 @@ Useful commands:
 | `docker compose stop` | stop MySQL (data is kept) |
 | `docker compose down -v` | delete the database completely (start fresh) |
 | `npx prisma generate` | regenerate the Prisma client after editing `schema.prisma` |
+| `npx prisma migrate dev --name <change>` | after editing `schema.prisma`: create and apply a new migration |
 
 ## Documentation
 - [Contributing guide](CONTRIBUTING.md)

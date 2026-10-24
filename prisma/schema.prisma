@@ -1,3 +1,13 @@
+// Qaryati database schema.
+// Design: docs/architecture/erd.md and docs/architecture/data-dictionary.md
+// Provenance and verification rules: docs/adr/0005-data-provenance-and-verification.md
+//
+// Conventions
+// - Models are PascalCase and mapped to snake_case plural tables with @@map.
+// - Fields are camelCase and mapped to snake_case columns with @map.
+// - Primary and foreign keys are INT UNSIGNED.
+// - CHECK constraints are added by hand in the migration SQL (Prisma cannot express them).
+
 generator client {
   provider     = "prisma-client"
   output       = "../src/generated/prisma"
@@ -6,4 +16,608 @@ generator client {
 
 datasource db {
   provider = "mysql"
+}
+
+// ─────────────────────────────────────────────────────────────
+// Enums
+// ─────────────────────────────────────────────────────────────
+
+enum MunicipalityType {
+  MUNICIPALITY
+  VILLAGE_COUNCIL
+  JOINT_COUNCIL
+}
+
+enum NameLanguage {
+  AR
+  EN
+  OTHER
+}
+
+enum NameType {
+  CURRENT
+  ENGLISH
+  HISTORICAL
+  TRANSLITERATION
+  ALTERNATIVE
+}
+
+enum SourceType {
+  BOOK
+  ARTICLE
+  CENSUS
+  ARCHIVE
+  WEBSITE
+  ORAL
+  OTHER
+}
+
+enum VerificationStatus {
+  PENDING
+  VERIFIED
+  REJECTED
+}
+
+enum EventCategory {
+  POLITICAL
+  SOCIAL
+  ECONOMIC
+  CULTURAL
+  NATURAL
+  OTHER
+}
+
+enum DatePrecision {
+  EXACT
+  YEAR
+  DECADE
+  APPROXIMATE
+}
+
+enum LandmarkType {
+  MOSQUE
+  CHURCH
+  SHRINE
+  SPRING
+  ARCHAEOLOGICAL_SITE
+  OLD_BUILDING
+  NATURAL
+  OTHER
+}
+
+enum LandmarkCondition {
+  GOOD
+  DAMAGED
+  DESTROYED
+  UNKNOWN
+}
+
+enum CulturalCategory {
+  FOOD
+  CRAFT
+  DRESS
+  MUSIC_DANCE
+  FESTIVAL
+  DIALECT
+  CUSTOM
+  OTHER
+}
+
+enum EconomicType {
+  AGRICULTURE
+  LIVESTOCK
+  TRADE
+  CRAFT
+  INDUSTRY
+  TOURISM
+  SERVICES
+  OTHER
+}
+
+enum Importance {
+  MAIN
+  SECONDARY
+}
+
+enum FacilityType {
+  SCHOOL
+  CLINIC
+  HOSPITAL
+  POST_OFFICE
+  WATER_NETWORK
+  ELECTRICITY
+  COMMUNITY_CENTER
+  OTHER
+}
+
+enum FacilityStatus {
+  ACTIVE
+  CLOSED
+  PLANNED
+}
+
+enum RelationType {
+  SPLIT_FROM
+  MERGED_WITH
+  FORMERLY_PART_OF
+  OTHER
+}
+
+enum UserRole {
+  ADMIN
+  VERIFIER
+  CONTRIBUTOR
+}
+
+enum AuditAction {
+  CREATE
+  UPDATE
+  DELETE
+  RESTORE
+  VERIFY
+  REJECT
+  SET_PREFERRED
+}
+
+// ─────────────────────────────────────────────────────────────
+// Accounts
+// ─────────────────────────────────────────────────────────────
+
+model User {
+  id           Int       @id @default(autoincrement()) @db.UnsignedInt
+  email        String    @unique @db.VarChar(255)
+  passwordHash String    @map("password_hash") @db.VarChar(255)
+  fullName     String    @map("full_name") @db.VarChar(150)
+  role         UserRole  @default(CONTRIBUTOR)
+  isActive     Boolean   @default(true) @map("is_active")
+  lastLoginAt  DateTime? @map("last_login_at") @db.DateTime(3)
+  createdAt    DateTime  @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt    DateTime  @updatedAt @map("updated_at") @db.DateTime(3)
+
+  refreshTokens RefreshToken[]
+  auditLogs     AuditLog[]
+  sources       Source[]
+
+  submittedNames          VillageName[]      @relation("VillageNameSubmittedBy")
+  verifiedNames           VillageName[]      @relation("VillageNameVerifiedBy")
+  submittedPopulation     PopulationRecord[] @relation("PopulationSubmittedBy")
+  verifiedPopulation      PopulationRecord[] @relation("PopulationVerifiedBy")
+  submittedEvents         HistoricalEvent[]  @relation("EventSubmittedBy")
+  verifiedEvents          HistoricalEvent[]  @relation("EventVerifiedBy")
+  submittedLandmarks      Landmark[]         @relation("LandmarkSubmittedBy")
+  verifiedLandmarks       Landmark[]         @relation("LandmarkVerifiedBy")
+  submittedCulturalTraits CulturalTrait[]    @relation("CulturalTraitSubmittedBy")
+  verifiedCulturalTraits  CulturalTrait[]    @relation("CulturalTraitVerifiedBy")
+  submittedEconomic       EconomicActivity[] @relation("EconomicSubmittedBy")
+  verifiedEconomic        EconomicActivity[] @relation("EconomicVerifiedBy")
+  submittedFacilities     Facility[]         @relation("FacilitySubmittedBy")
+  verifiedFacilities      Facility[]         @relation("FacilityVerifiedBy")
+  submittedRelations      VillageRelation[]  @relation("RelationSubmittedBy")
+  verifiedRelations       VillageRelation[]  @relation("RelationVerifiedBy")
+
+  @@map("users")
+}
+
+model RefreshToken {
+  id        Int       @id @default(autoincrement()) @db.UnsignedInt
+  userId    Int       @map("user_id") @db.UnsignedInt
+  tokenHash String    @unique @map("token_hash") @db.Char(64)
+  expiresAt DateTime  @map("expires_at") @db.DateTime(3)
+  revokedAt DateTime? @map("revoked_at") @db.DateTime(3)
+  createdAt DateTime  @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.DateTime(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("refresh_tokens")
+}
+
+// Append-only: the application never updates or deletes rows here.
+model AuditLog {
+  id         BigInt      @id @default(autoincrement()) @db.UnsignedBigInt
+  userId     Int?        @map("user_id") @db.UnsignedInt
+  action     AuditAction
+  entityType String      @map("entity_type") @db.VarChar(50)
+  entityId   Int         @map("entity_id") @db.UnsignedInt
+  // not "before"/"after": both are reserved words in MySQL
+  beforeData Json?       @map("before_data")
+  afterData  Json?       @map("after_data")
+  ipAddress  String?     @map("ip_address") @db.VarChar(45)
+  createdAt  DateTime    @default(now()) @map("created_at") @db.DateTime(3)
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([entityType, entityId, createdAt])
+  @@index([userId, createdAt])
+  @@map("audit_logs")
+}
+
+// ─────────────────────────────────────────────────────────────
+// Sources
+// ─────────────────────────────────────────────────────────────
+
+model Source {
+  id         Int        @id @default(autoincrement()) @db.UnsignedInt
+  type       SourceType
+  title      String     @db.VarChar(300)
+  author     String?    @db.VarChar(200)
+  publisher  String?    @db.VarChar(200)
+  year       Int?       @db.SmallInt
+  url        String?    @db.VarChar(500)
+  accessedAt DateTime?  @map("accessed_at") @db.Date
+  createdBy  Int        @map("created_by") @db.UnsignedInt
+  createdAt  DateTime   @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt  DateTime   @updatedAt @map("updated_at") @db.DateTime(3)
+
+  creator User @relation(fields: [createdBy], references: [id])
+
+  villageNames       VillageName[]
+  populationRecords  PopulationRecord[]
+  historicalEvents   HistoricalEvent[]
+  landmarks          Landmark[]
+  culturalTraits     CulturalTrait[]
+  economicActivities EconomicActivity[]
+  facilities         Facility[]
+  villageRelations   VillageRelation[]
+
+  @@index([type])
+  @@index([createdBy])
+  @@map("sources")
+}
+
+// ─────────────────────────────────────────────────────────────
+// Geography and administration
+// ─────────────────────────────────────────────────────────────
+
+model Governorate {
+  id        Int      @id @default(autoincrement()) @db.UnsignedInt
+  nameAr    String   @unique @map("name_ar") @db.VarChar(100)
+  nameEn    String   @unique @map("name_en") @db.VarChar(100)
+  createdAt DateTime @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.DateTime(3)
+
+  municipalities Municipality[]
+  villages       Village[]
+
+  @@map("governorates")
+}
+
+model Municipality {
+  id            Int              @id @default(autoincrement()) @db.UnsignedInt
+  governorateId Int              @map("governorate_id") @db.UnsignedInt
+  nameAr        String           @map("name_ar") @db.VarChar(150)
+  nameEn        String           @map("name_en") @db.VarChar(150)
+  type          MunicipalityType
+  createdAt     DateTime         @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt     DateTime         @updatedAt @map("updated_at") @db.DateTime(3)
+
+  governorate Governorate @relation(fields: [governorateId], references: [id])
+  villages    Village[]
+
+  @@unique([governorateId, nameAr])
+  @@map("municipalities")
+}
+
+// Nearby-village search runs as native SQL on (latitude, longitude):
+// a bounding-box filter that uses the index, then ST_Distance_Sphere for the exact distance.
+// See ADR-0006.
+model Village {
+  id                  Int       @id @default(autoincrement()) @db.UnsignedInt
+  nameAr              String    @map("name_ar") @db.VarChar(150)
+  nameEn              String    @map("name_en") @db.VarChar(150)
+  nameOrigin          String?   @map("name_origin") @db.Text
+  governorateId       Int       @map("governorate_id") @db.UnsignedInt
+  municipalityId      Int?      @map("municipality_id") @db.UnsignedInt
+  latitude            Decimal   @db.Decimal(9, 6)
+  longitude           Decimal   @db.Decimal(9, 6)
+  locationDescription String?   @map("location_description") @db.Text
+  elevationM          Int?      @map("elevation_m")
+  areaDunum           Decimal?  @map("area_dunum") @db.Decimal(10, 2)
+  deletedAt           DateTime? @map("deleted_at") @db.DateTime(3)
+  createdAt           DateTime  @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt           DateTime  @updatedAt @map("updated_at") @db.DateTime(3)
+
+  governorate  Governorate   @relation(fields: [governorateId], references: [id])
+  municipality Municipality? @relation(fields: [municipalityId], references: [id])
+
+  names              VillageName[]
+  populationRecords  PopulationRecord[]
+  events             EventVillage[]
+  landmarks          Landmark[]
+  culturalTraits     CulturalTrait[]
+  economicActivities EconomicActivity[]
+  facilities         Facility[]
+  relations          VillageRelation[]  @relation("RelationSubject")
+  relatedTo          VillageRelation[]  @relation("RelationObject")
+
+  @@index([governorateId, nameAr])
+  @@index([municipalityId])
+  @@index([latitude, longitude])
+  @@index([deletedAt])
+  @@map("villages")
+}
+
+model VillageName {
+  id         Int          @id @default(autoincrement()) @db.UnsignedInt
+  villageId  Int          @map("village_id") @db.UnsignedInt
+  name       String       @db.VarChar(150)
+  language   NameLanguage
+  type       NameType
+  periodNote String?      @map("period_note") @db.VarChar(255)
+
+  // provenance
+  sourceId        Int?               @map("source_id") @db.UnsignedInt
+  status          VerificationStatus @default(PENDING)
+  isPreferred     Boolean?           @map("is_preferred")
+  submittedById   Int                @map("submitted_by") @db.UnsignedInt
+  verifiedById    Int?               @map("verified_by") @db.UnsignedInt
+  verifiedAt      DateTime?          @map("verified_at") @db.DateTime(3)
+  rejectionReason String?            @map("rejection_reason") @db.VarChar(500)
+  createdAt       DateTime           @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt       DateTime           @updatedAt @map("updated_at") @db.DateTime(3)
+
+  village     Village @relation(fields: [villageId], references: [id], onDelete: Cascade)
+  source      Source? @relation(fields: [sourceId], references: [id])
+  submittedBy User    @relation("VillageNameSubmittedBy", fields: [submittedById], references: [id])
+  verifiedBy  User?   @relation("VillageNameVerifiedBy", fields: [verifiedById], references: [id])
+
+  @@unique([villageId, name, type])
+  @@unique([villageId, language, type, isPreferred])
+  @@index([status])
+  @@index([sourceId])
+  @@index([submittedById])
+  @@index([verifiedById])
+  @@fulltext([name])
+  @@map("village_names")
+}
+
+model VillageRelation {
+  id               Int          @id @default(autoincrement()) @db.UnsignedInt
+  villageId        Int          @map("village_id") @db.UnsignedInt
+  relatedVillageId Int          @map("related_village_id") @db.UnsignedInt
+  type             RelationType
+  year             Int?         @db.SmallInt
+
+  // provenance
+  sourceId        Int                @map("source_id") @db.UnsignedInt
+  status          VerificationStatus @default(PENDING)
+  submittedById   Int                @map("submitted_by") @db.UnsignedInt
+  verifiedById    Int?               @map("verified_by") @db.UnsignedInt
+  verifiedAt      DateTime?          @map("verified_at") @db.DateTime(3)
+  rejectionReason String?            @map("rejection_reason") @db.VarChar(500)
+  createdAt       DateTime           @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt       DateTime           @updatedAt @map("updated_at") @db.DateTime(3)
+
+  // onUpdate: Restrict because MySQL does not allow a CHECK constraint on columns
+  // used by a cascading foreign key (see the CHECK in the init migration).
+  village        Village @relation("RelationSubject", fields: [villageId], references: [id], onUpdate: Restrict)
+  relatedVillage Village @relation("RelationObject", fields: [relatedVillageId], references: [id], onUpdate: Restrict)
+  source         Source  @relation(fields: [sourceId], references: [id])
+  submittedBy    User    @relation("RelationSubmittedBy", fields: [submittedById], references: [id])
+  verifiedBy     User?   @relation("RelationVerifiedBy", fields: [verifiedById], references: [id])
+
+  @@unique([villageId, relatedVillageId, type])
+  @@index([relatedVillageId])
+  @@index([status])
+  @@index([sourceId])
+  @@index([submittedById])
+  @@index([verifiedById])
+  @@map("village_relations")
+}
+
+// ─────────────────────────────────────────────────────────────
+// Facts about a village
+// ─────────────────────────────────────────────────────────────
+
+model PopulationRecord {
+  id         Int     @id @default(autoincrement()) @db.UnsignedInt
+  villageId  Int     @map("village_id") @db.UnsignedInt
+  year       Int     @db.SmallInt
+  population Int     @db.UnsignedInt
+  households Int?    @db.UnsignedInt
+  notes      String? @db.Text
+
+  // provenance
+  sourceId        Int                @map("source_id") @db.UnsignedInt
+  status          VerificationStatus @default(PENDING)
+  isPreferred     Boolean?           @map("is_preferred")
+  submittedById   Int                @map("submitted_by") @db.UnsignedInt
+  verifiedById    Int?               @map("verified_by") @db.UnsignedInt
+  verifiedAt      DateTime?          @map("verified_at") @db.DateTime(3)
+  rejectionReason String?            @map("rejection_reason") @db.VarChar(500)
+  createdAt       DateTime           @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt       DateTime           @updatedAt @map("updated_at") @db.DateTime(3)
+
+  village     Village @relation(fields: [villageId], references: [id])
+  source      Source  @relation(fields: [sourceId], references: [id])
+  submittedBy User    @relation("PopulationSubmittedBy", fields: [submittedById], references: [id])
+  verifiedBy  User?   @relation("PopulationVerifiedBy", fields: [verifiedById], references: [id])
+
+  @@unique([villageId, year, sourceId])
+  @@unique([villageId, year, isPreferred])
+  @@index([status])
+  @@index([sourceId])
+  @@index([submittedById])
+  @@index([verifiedById])
+  @@map("population_records")
+}
+
+model HistoricalEvent {
+  id            Int           @id @default(autoincrement()) @db.UnsignedInt
+  title         String        @db.VarChar(255)
+  description   String        @db.Text
+  category      EventCategory
+  yearFrom      Int           @map("year_from") @db.SmallInt
+  yearTo        Int?          @map("year_to") @db.SmallInt
+  datePrecision DatePrecision @map("date_precision")
+
+  // provenance
+  sourceId        Int                @map("source_id") @db.UnsignedInt
+  status          VerificationStatus @default(PENDING)
+  submittedById   Int                @map("submitted_by") @db.UnsignedInt
+  verifiedById    Int?               @map("verified_by") @db.UnsignedInt
+  verifiedAt      DateTime?          @map("verified_at") @db.DateTime(3)
+  rejectionReason String?            @map("rejection_reason") @db.VarChar(500)
+  createdAt       DateTime           @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt       DateTime           @updatedAt @map("updated_at") @db.DateTime(3)
+
+  source      Source @relation(fields: [sourceId], references: [id])
+  submittedBy User   @relation("EventSubmittedBy", fields: [submittedById], references: [id])
+  verifiedBy  User?  @relation("EventVerifiedBy", fields: [verifiedById], references: [id])
+
+  villages EventVillage[]
+
+  @@index([yearFrom])
+  @@index([status])
+  @@index([sourceId])
+  @@index([submittedById])
+  @@index([verifiedById])
+  @@map("historical_events")
+}
+
+model EventVillage {
+  eventId   Int     @map("event_id") @db.UnsignedInt
+  villageId Int     @map("village_id") @db.UnsignedInt
+  note      String? @db.VarChar(255)
+
+  event   HistoricalEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  village Village         @relation(fields: [villageId], references: [id])
+
+  @@id([eventId, villageId])
+  @@index([villageId, eventId])
+  @@map("event_villages")
+}
+
+model Landmark {
+  id               Int               @id @default(autoincrement()) @db.UnsignedInt
+  villageId        Int               @map("village_id") @db.UnsignedInt
+  nameAr           String            @map("name_ar") @db.VarChar(150)
+  nameEn           String?           @map("name_en") @db.VarChar(150)
+  type             LandmarkType
+  description      String?           @db.Text
+  latitude         Decimal?          @db.Decimal(9, 6)
+  longitude        Decimal?          @db.Decimal(9, 6)
+  period           String?           @db.VarChar(100)
+  // not "condition": CONDITION is a reserved word in MySQL
+  currentCondition LandmarkCondition @default(UNKNOWN) @map("current_condition")
+
+  // provenance
+  sourceId        Int                @map("source_id") @db.UnsignedInt
+  status          VerificationStatus @default(PENDING)
+  submittedById   Int                @map("submitted_by") @db.UnsignedInt
+  verifiedById    Int?               @map("verified_by") @db.UnsignedInt
+  verifiedAt      DateTime?          @map("verified_at") @db.DateTime(3)
+  rejectionReason String?            @map("rejection_reason") @db.VarChar(500)
+  createdAt       DateTime           @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt       DateTime           @updatedAt @map("updated_at") @db.DateTime(3)
+
+  village     Village @relation(fields: [villageId], references: [id])
+  source      Source  @relation(fields: [sourceId], references: [id])
+  submittedBy User    @relation("LandmarkSubmittedBy", fields: [submittedById], references: [id])
+  verifiedBy  User?   @relation("LandmarkVerifiedBy", fields: [verifiedById], references: [id])
+
+  @@index([villageId, type])
+  @@index([status])
+  @@index([sourceId])
+  @@index([submittedById])
+  @@index([verifiedById])
+  @@map("landmarks")
+}
+
+model CulturalTrait {
+  id          Int              @id @default(autoincrement()) @db.UnsignedInt
+  villageId   Int              @map("village_id") @db.UnsignedInt
+  category    CulturalCategory
+  title       String           @db.VarChar(200)
+  description String?          @db.Text
+
+  // provenance
+  sourceId        Int                @map("source_id") @db.UnsignedInt
+  status          VerificationStatus @default(PENDING)
+  submittedById   Int                @map("submitted_by") @db.UnsignedInt
+  verifiedById    Int?               @map("verified_by") @db.UnsignedInt
+  verifiedAt      DateTime?          @map("verified_at") @db.DateTime(3)
+  rejectionReason String?            @map("rejection_reason") @db.VarChar(500)
+  createdAt       DateTime           @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt       DateTime           @updatedAt @map("updated_at") @db.DateTime(3)
+
+  village     Village @relation(fields: [villageId], references: [id])
+  source      Source  @relation(fields: [sourceId], references: [id])
+  submittedBy User    @relation("CulturalTraitSubmittedBy", fields: [submittedById], references: [id])
+  verifiedBy  User?   @relation("CulturalTraitVerifiedBy", fields: [verifiedById], references: [id])
+
+  @@index([villageId, category])
+  @@index([status])
+  @@index([sourceId])
+  @@index([submittedById])
+  @@index([verifiedById])
+  @@map("cultural_traits")
+}
+
+model EconomicActivity {
+  id          Int          @id @default(autoincrement()) @db.UnsignedInt
+  villageId   Int          @map("village_id") @db.UnsignedInt
+  type        EconomicType
+  name        String       @db.VarChar(200)
+  description String?      @db.Text
+  importance  Importance
+  yearFrom    Int?         @map("year_from") @db.SmallInt
+  yearTo      Int?         @map("year_to") @db.SmallInt
+
+  // provenance
+  sourceId        Int                @map("source_id") @db.UnsignedInt
+  status          VerificationStatus @default(PENDING)
+  submittedById   Int                @map("submitted_by") @db.UnsignedInt
+  verifiedById    Int?               @map("verified_by") @db.UnsignedInt
+  verifiedAt      DateTime?          @map("verified_at") @db.DateTime(3)
+  rejectionReason String?            @map("rejection_reason") @db.VarChar(500)
+  createdAt       DateTime           @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt       DateTime           @updatedAt @map("updated_at") @db.DateTime(3)
+
+  village     Village @relation(fields: [villageId], references: [id])
+  source      Source  @relation(fields: [sourceId], references: [id])
+  submittedBy User    @relation("EconomicSubmittedBy", fields: [submittedById], references: [id])
+  verifiedBy  User?   @relation("EconomicVerifiedBy", fields: [verifiedById], references: [id])
+
+  @@index([villageId, type])
+  @@index([status])
+  @@index([sourceId])
+  @@index([submittedById])
+  @@index([verifiedById])
+  @@map("economic_activities")
+}
+
+model Facility {
+  id              Int            @id @default(autoincrement()) @db.UnsignedInt
+  villageId       Int            @map("village_id") @db.UnsignedInt
+  type            FacilityType
+  name            String         @db.VarChar(200)
+  // operational status; the verification status is `verificationStatus` below
+  status          FacilityStatus
+  yearEstablished Int?           @map("year_established") @db.SmallInt
+  latitude        Decimal?       @db.Decimal(9, 6)
+  longitude       Decimal?       @db.Decimal(9, 6)
+
+  // provenance
+  sourceId           Int                @map("source_id") @db.UnsignedInt
+  verificationStatus VerificationStatus @default(PENDING) @map("verification_status")
+  submittedById      Int                @map("submitted_by") @db.UnsignedInt
+  verifiedById       Int?               @map("verified_by") @db.UnsignedInt
+  verifiedAt         DateTime?          @map("verified_at") @db.DateTime(3)
+  rejectionReason    String?            @map("rejection_reason") @db.VarChar(500)
+  createdAt          DateTime           @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt          DateTime           @updatedAt @map("updated_at") @db.DateTime(3)
+
+  village     Village @relation(fields: [villageId], references: [id])
+  source      Source  @relation(fields: [sourceId], references: [id])
+  submittedBy User    @relation("FacilitySubmittedBy", fields: [submittedById], references: [id])
+  verifiedBy  User?   @relation("FacilityVerifiedBy", fields: [verifiedById], references: [id])
+
+  @@index([villageId, type])
+  @@index([verificationStatus])
+  @@index([sourceId])
+  @@index([submittedById])
+  @@index([verifiedById])
+  @@map("facilities")
 }
