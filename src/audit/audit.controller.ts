@@ -27,6 +27,12 @@ export class AuditController {
 
     @Query('limit', new DefaultValuePipe(20), ParseIntPipe)
     limit: number,
+
+    @Query('entityType')
+    entityType?: string,
+
+    @Query('entityId')
+    entityId?: string,
   ) {
     if (page < 1 || limit < 1 || limit > 100) {
       throw new BadRequestException(
@@ -34,9 +40,36 @@ export class AuditController {
       );
     }
 
+    let parsedEntityId: number | undefined;
+
+    if (entityId !== undefined) {
+      parsedEntityId = Number(entityId);
+
+      if (
+        !Number.isSafeInteger(parsedEntityId) ||
+        parsedEntityId < 1
+      ) {
+        throw new BadRequestException(
+          'entityId must be a positive integer',
+        );
+      }
+    }
+
+    if (
+      entityType !== undefined &&
+      (typeof entityType !== 'string' ||
+        entityType.trim() === '')
+    ) {
+      throw new BadRequestException(
+        'entityType must be a non-empty string',
+      );
+    }
+
     return this.auditService.findAll(
       (page - 1) * limit,
       limit,
+      entityType,
+      parsedEntityId,
     );
   }
 }

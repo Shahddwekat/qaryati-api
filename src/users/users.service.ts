@@ -5,6 +5,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { AuditService } from '../audit/audit.service';
 import {
   UserRole,
   AuditAction,
@@ -12,7 +13,10 @@ import {
 
 @Injectable()
 export class UsersService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly auditService: AuditService,
+  ) {}
 
   async findAll() {
     return this.prisma.user.findMany({
@@ -63,8 +67,8 @@ export class UsersService {
         },
       });
 
-      await tx.auditLog.create({
-        data: {
+      await this.auditService.log(
+        {
           userId: currentUserId,
           action: AuditAction.UPDATE,
           entityType: 'User',
@@ -72,7 +76,8 @@ export class UsersService {
           beforeData: { role: user.role },
           afterData: { role: updated.role },
         },
-      });
+        tx,
+      );
 
       return updated;
     });
@@ -113,16 +118,17 @@ export class UsersService {
         },
       });
 
-      await tx.auditLog.create({
-        data: {
+      await this.auditService.log(
+        {
           userId: currentUserId,
           action: AuditAction.UPDATE,
           entityType: 'User',
           entityId: userId,
-          beforeData: { isActive: true },
-          afterData: { isActive: false },
+          beforeData: { isActive: user.isActive },
+          afterData: { isActive: updated.isActive },
         },
-      });
+        tx,
+      );
 
       return updated;
     });

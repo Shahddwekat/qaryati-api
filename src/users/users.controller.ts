@@ -6,24 +6,16 @@ import {
   Param,
   ParseIntPipe,
   Patch,
-  Req,
   UseGuards,
 } from '@nestjs/common';
-import { Request } from 'express';
 import { UserRole } from '../generated/prisma/client';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/roles.decorator';
+import { CurrentUser } from '../common/decorators/current-user.decorator';
+import type { CurrentUserData } from '../common/decorators/current-user.decorator';
 import { UsersService } from './users.service';
 import { UpdateRoleDto } from './dto/update-role.dto';
-
-type AuthenticatedRequest = Request & {
-  user: {
-    id: number;
-    email: string;
-    role: UserRole;
-  };
-};
 
 @Controller('users')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -31,8 +23,8 @@ export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
   @Get('me')
-  getProfile(@Req() request: AuthenticatedRequest) {
-    return request.user;
+  getProfile(@CurrentUser() user: CurrentUserData) {
+    return user;
   }
 
   @Get()
@@ -46,12 +38,12 @@ export class UsersController {
   updateRole(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateRoleDto,
-    @Req() request: AuthenticatedRequest,
+    @CurrentUser('id') currentUserId: number,
   ) {
     return this.usersService.updateRole(
       id,
       dto.role,
-      request.user.id,
+      currentUserId,
     );
   }
 
@@ -59,11 +51,11 @@ export class UsersController {
   @Roles(UserRole.ADMIN)
   disableUser(
     @Param('id', ParseIntPipe) id: number,
-    @Req() request: AuthenticatedRequest,
+    @CurrentUser('id') currentUserId: number,
   ) {
     return this.usersService.disableUser(
       id,
-      request.user.id,
+      currentUserId,
     );
   }
 }
