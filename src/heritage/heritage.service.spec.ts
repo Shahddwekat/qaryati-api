@@ -1,30 +1,38 @@
-import { LandmarkType, VerificationStatus } from '../generated/prisma/client';
-import { jest } from '@jest/globals';
-import { NotFoundException } from '@nestjs/common';
+
+import {
+  LandmarkType,
+  VerificationStatus,
+  EventCategory,
+  DatePrecision,
+} from '../generated/prisma/client';import { jest } from '@jest/globals';
+import {
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { HeritageService } from './heritage.service';
-import { PrismaService } from '../prisma/prisma.service';
+import { PrismaService 
+} from '../prisma/prisma.service';
 
 describe('HeritageService', () => {
   let service: HeritageService;
 
-  
- const prismaMock = {
-  village: {
-    findUnique: jest.fn<() => Promise<{ id: number } | null>>(),
-  },
-  source: {
-    findUnique: jest.fn<() => Promise<{ id: number } | null>>(),
-  },
-  landmark: {
-    findMany: jest.fn(),
-    create: jest.fn(),
-  },
-
-  historicalEvent: {
-  findMany: jest.fn(),
- },
- };
-
+  const prismaMock = {
+    village: {
+      findUnique: jest.fn<() => Promise<{ id: number } | null>>(),
+      findMany: jest.fn(),
+    },
+    source: {
+      findUnique: jest.fn<() => Promise<{ id: number } | null>>(),
+    },
+    landmark: {
+      findMany: jest.fn(),
+      create: jest.fn(),
+    },
+    historicalEvent: {
+      findMany: jest.fn(),
+      create: jest.fn(),
+    },
+  };
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -43,7 +51,7 @@ describe('HeritageService', () => {
 
     expect(prismaMock.landmark.findMany).not.toHaveBeenCalled();
   });
-  
+
   it('should return only verified landmarks for an existing village', async () => {
     prismaMock.village.findUnique.mockResolvedValueOnce({ id: 1 } as never);
 
@@ -69,7 +77,6 @@ describe('HeritageService', () => {
     expect(result[0].nameAr).toBe('نبع القرية');
   });
 
-  
   it('should create a landmark with PENDING status', async () => {
     const dto = {
       nameAr: 'نبع القرية',
@@ -106,7 +113,6 @@ describe('HeritageService', () => {
     expect(result).toEqual(createdLandmark);
   });
 
-  
   it('should reject landmark creation when source does not exist', async () => {
     const dto = {
       nameAr: 'نبع القرية',
@@ -128,8 +134,7 @@ describe('HeritageService', () => {
 
     expect(prismaMock.landmark.create).not.toHaveBeenCalled();
   });
- 
-  
+
   it('should reject landmark creation when village does not exist', async () => {
     const dto = {
       nameAr: 'نبع القرية',
@@ -147,7 +152,6 @@ describe('HeritageService', () => {
     expect(prismaMock.landmark.create).not.toHaveBeenCalled();
   });
 
-  
   it('should retrieve verified historical events for a village', async () => {
     prismaMock.village.findUnique.mockResolvedValue({ id: 1 });
 
@@ -181,7 +185,6 @@ describe('HeritageService', () => {
     expect(result).toEqual(events);
   });
 
-  
   it('should reject historical events request when village does not exist', async () => {
     prismaMock.village.findUnique.mockResolvedValue(null);
 
@@ -191,5 +194,121 @@ describe('HeritageService', () => {
 
     expect(prismaMock.historicalEvent.findMany).not.toHaveBeenCalled();
   });
+
+  
+it('should create a historical event with PENDING status and village links', async () => {
+  const dto = {
+    title: 'Historical Event',
+    description: 'An important event in village history',
+    category: EventCategory.CULTURAL,
+    datePrecision: DatePrecision.YEAR,
+    yearFrom: 1948,
+    yearTo: 1950,
+    sourceId: 1,
+    villageIds: [1, 2],
+  };
+
+  prismaMock.source.findUnique.mockResolvedValue({ id: 1 });
+  prismaMock.village.findMany.mockReturnValue([
+    { id: 1 },
+    { id: 2 },
+  ] as never);
+
+  const createdEvent = {
+    id: 10,
+    title: dto.title,
+    status: VerificationStatus.PENDING,
+    submittedById: 3,
+    villages: [
+      { eventId: 10, villageId: 1 },
+      { eventId: 10, villageId: 2 },
+    ],
+  };
+
+  prismaMock.historicalEvent.create.mockReturnValue(createdEvent as never);
+
+  const result = await service.createHistoricalEvent(dto, 3);
+
+  expect(prismaMock.source.findUnique).toHaveBeenCalledWith({
+    where: { id: 1 },
+    select: { id: true },
+  });
+
+  expect(prismaMock.village.findMany).toHaveBeenCalledWith({
+    where: { id: { in: [1, 2] } },
+    select: { id: true },
+  });
+
+  expect(prismaMock.historicalEvent.create).toHaveBeenCalledWith({
+    data: expect.objectContaining({
+      title: 'Historical Event',
+      sourceId: 1,
+      submittedById: 3,
+      status: VerificationStatus.PENDING,
+      villages: {
+        create: [{ villageId: 1 }, { villageId: 2 }],
+      },
+    }),
+    include: { villages: true },
+  });
+
+  expect(result).toEqual(createdEvent);
+});
+
+
+it('should reject historical event creation when a village does not exist', async () => {
+  const dto = {
+    title: 'Historical Event',
+    description: 'An important event in village history',
+    category: EventCategory.CULTURAL,
+    datePrecision: DatePrecision.YEAR,
+    yearFrom: 1948,
+    yearTo: 1950,
+    sourceId: 1,
+    villageIds: [1, 99999],
+  };
+
+  prismaMock.source.findUnique.mockResolvedValue({ id: 1 });
+
+  // Only village 1 exists
+  prismaMock.village.findMany.mockReturnValue([
+    { id: 1 },
+  ] as never);
+
+  await expect(
+    service.createHistoricalEvent(dto, 3),
+  ).rejects.toThrow(BadRequestException);
+
+  expect(prismaMock.historicalEvent.create).not.toHaveBeenCalled();
+});
+
+
+it('should reject historical event creation when source does not exist', async () => {
+  const dto = {
+    title: 'Historical Event',
+    description: 'An important event in village history',
+    category: EventCategory.CULTURAL,
+    datePrecision: DatePrecision.YEAR,
+    yearFrom: 1948,
+    yearTo: 1950,
+    sourceId: 99999,
+    villageIds: [1, 2],
+  };
+
+  prismaMock.source.findUnique.mockResolvedValue(null);
+
+  await expect(
+    service.createHistoricalEvent(dto, 3),
+  ).rejects.toThrow(NotFoundException);
+
+  expect(prismaMock.source.findUnique).toHaveBeenCalledWith({
+    where: { id: 99999 },
+    select: { id: true },
+  });
+
+  expect(prismaMock.village.findMany).not.toHaveBeenCalled();
+  expect(prismaMock.historicalEvent.create).not.toHaveBeenCalled();
+});
+
 
 });

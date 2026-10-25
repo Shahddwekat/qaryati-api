@@ -1,8 +1,13 @@
 
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { VerificationStatus } from '../generated/prisma/client';
 import { CreateLandmarkDto } from './dto/create-landmark.dto';
+import { CreateHistoricalEventDto } from './dto/create-historical-event.dto';
 
 @Injectable()
 export class HeritageService {
@@ -74,7 +79,7 @@ export class HeritageService {
     });
   }
 
-  
+  // Get verified historical events for a specific village
   async getHistoricalEventsByVillage(villageId: number) {
     const village = await this.prisma.village.findUnique({
       where: { id: villageId },
@@ -100,4 +105,54 @@ export class HeritageService {
     });
   }
 
+  // Create a historical event and link it to villages
+  async createHistoricalEvent(
+    dto: CreateHistoricalEventDto,
+    userId: number,
+  ) {
+    // 1. Check that the source exists
+    await this.ensureSourceExists(dto.sourceId);
+
+    // 2. Check that all villages exist
+    const villages = await this.prisma.village.findMany({
+      where: {
+        id: {
+          in: dto.villageIds,
+        },
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    if (villages.length !== dto.villageIds.length) {
+      throw new BadRequestException(
+        'One or more villages do not exist',
+      );
+    }
+
+    // 3. Create the event and its village links atomically
+    return this.prisma.historicalEvent.create({
+      data: {
+        title: dto.title,
+        description: dto.description,
+        category: dto.category,
+        datePrecision: dto.datePrecision,
+        yearFrom: dto.yearFrom,
+        yearTo: dto.yearTo,
+        sourceId: dto.sourceId,
+        submittedById: userId,
+        status: VerificationStatus.PENDING,
+
+        villages: {
+          create: dto.villageIds.map((villageId) => ({
+            villageId,
+          })),
+        },
+      },
+      include: {
+        villages: true,
+      },
+    });
+  }
 }
