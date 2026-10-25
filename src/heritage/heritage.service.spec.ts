@@ -4,7 +4,9 @@ import {
   VerificationStatus,
   EventCategory,
   DatePrecision,
-} from '../generated/prisma/client';import { jest } from '@jest/globals';
+  CulturalCategory,
+} from '../generated/prisma/client';
+import { jest } from '@jest/globals';
 import {
   NotFoundException,
   BadRequestException,
@@ -29,6 +31,10 @@ describe('HeritageService', () => {
       create: jest.fn(),
     },
     historicalEvent: {
+      findMany: jest.fn(),
+      create: jest.fn(),
+    },
+    culturalTrait: {
       findMany: jest.fn(),
       create: jest.fn(),
     },
@@ -308,6 +314,147 @@ it('should reject historical event creation when source does not exist', async (
 
   expect(prismaMock.village.findMany).not.toHaveBeenCalled();
   expect(prismaMock.historicalEvent.create).not.toHaveBeenCalled();
+});
+
+
+it('should return verified cultural traits for an existing village', async () => {
+  prismaMock.village.findUnique.mockResolvedValue({ id: 1 });
+
+  const traits = [
+    {
+      id: 10,
+      villageId: 1,
+      title: 'التطريز الفلسطيني',
+      category: 'CRAFT',
+      status: VerificationStatus.VERIFIED,
+    },
+  ];
+
+  prismaMock.culturalTrait.findMany.mockReturnValue(traits as never);
+
+  const result = await service.getCulturalTraitsByVillage(1);
+
+  expect(prismaMock.village.findUnique).toHaveBeenCalledWith({
+    where: { id: 1 },
+    select: { id: true },
+  });
+
+  expect(prismaMock.culturalTrait.findMany).toHaveBeenCalledWith({
+    where: {
+      villageId: 1,
+      status: VerificationStatus.VERIFIED,
+    },
+    orderBy: {
+      id: 'asc',
+    },
+  });
+
+  expect(result).toEqual(traits);
+});
+
+
+it('should reject cultural traits request when village does not exist', async () => {
+  prismaMock.village.findUnique.mockResolvedValue(null);
+
+  await expect(
+    service.getCulturalTraitsByVillage(99999),
+  ).rejects.toThrow(NotFoundException);
+
+  expect(prismaMock.village.findUnique).toHaveBeenCalledWith({
+    where: { id: 99999 },
+    select: { id: true },
+  });
+
+  expect(prismaMock.culturalTrait.findMany).not.toHaveBeenCalled();
+});
+
+  
+it('should create a cultural trait with PENDING status', async () => {
+  const dto = {
+    category: CulturalCategory.CRAFT,
+    title: 'التطريز الفلسطيني',
+    description: 'حرفة تراثية فلسطينية',
+    sourceId: 1,
+  };
+
+  prismaMock.village.findUnique.mockResolvedValue({ id: 1 });
+  prismaMock.source.findUnique.mockResolvedValue({ id: 1 });
+
+  const createdTrait = {
+    id: 10,
+    villageId: 1,
+    ...dto,
+    submittedById: 3,
+    status: VerificationStatus.PENDING,
+  };
+
+  prismaMock.culturalTrait.create.mockReturnValue(
+    createdTrait as never,
+  );
+
+  const result = await service.createCulturalTrait(1, dto, 3);
+
+  expect(prismaMock.culturalTrait.create).toHaveBeenCalledWith({
+    data: {
+      villageId: 1,
+      category: CulturalCategory.CRAFT,
+      title: 'التطريز الفلسطيني',
+      description: 'حرفة تراثية فلسطينية',
+      sourceId: 1,
+      submittedById: 3,
+      status: VerificationStatus.PENDING,
+    },
+  });
+
+  expect(result).toEqual(createdTrait);
+});
+
+
+it('should reject cultural trait creation when source does not exist', async () => {
+  const dto = {
+    category: CulturalCategory.CRAFT,
+    title: 'التطريز الفلسطيني',
+    description: 'حرفة تراثية فلسطينية',
+    sourceId: 99999,
+  };
+
+  prismaMock.village.findUnique.mockResolvedValue({ id: 1 });
+  prismaMock.source.findUnique.mockResolvedValue(null);
+
+  await expect(
+    service.createCulturalTrait(1, dto, 3),
+  ).rejects.toThrow(NotFoundException);
+
+  expect(prismaMock.source.findUnique).toHaveBeenCalledWith({
+    where: { id: 99999 },
+    select: { id: true },
+  });
+
+  expect(prismaMock.culturalTrait.create).not.toHaveBeenCalled();
+});
+
+
+it('should reject cultural trait creation when village does not exist', async () => {
+  const dto = {
+    category: CulturalCategory.CRAFT,
+    title: 'التطريز الفلسطيني',
+    description: 'حرفة تراثية فلسطينية',
+    sourceId: 1,
+  };
+
+  prismaMock.village.findUnique.mockResolvedValue(null);
+
+  await expect(
+    service.createCulturalTrait(99999, dto, 3),
+  ).rejects.toThrow(NotFoundException);
+
+  expect(prismaMock.village.findUnique).toHaveBeenCalledWith({
+    where: { id: 99999 },
+    select: { id: true },
+  });
+
+  expect(prismaMock.source.findUnique).not.toHaveBeenCalled();
+  expect(prismaMock.culturalTrait.create).not.toHaveBeenCalled();
 });
 
 

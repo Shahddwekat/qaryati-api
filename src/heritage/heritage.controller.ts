@@ -1,3 +1,4 @@
+
 import {
   Controller,
   Get,
@@ -10,12 +11,15 @@ import { HeritageService } from './heritage.service';
 export class HeritageController {
   constructor(private readonly heritageService: HeritageService) {}
 
+  // Get verified landmarks for a village
   @Get(':id/landmarks')
-  getLandmarksByVillage(@Param('id', ParseIntPipe) id: number) {
+  getLandmarksByVillage(
+    @Param('id', ParseIntPipe) id: number,
+  ) {
     return this.heritageService.getLandmarksByVillage(id);
   }
 
-  
+  // Get verified historical events for a village
   @Get(':id/historical-events')
   getHistoricalEventsByVillage(
     @Param('id', ParseIntPipe) id: number,
@@ -23,4 +27,11 @@ export class HeritageController {
     return this.heritageService.getHistoricalEventsByVillage(id);
   }
 
+  // Get verified cultural traits for a village
+  @Get(':id/cultural-traits')
+  getCulturalTraitsByVillage(
+    @Param('id', ParseIntPipe) id: number,
+  ) {
+    return this.heritageService.getCulturalTraitsByVillage(id);
+  }
 }

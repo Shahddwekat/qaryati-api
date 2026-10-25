@@ -1,4 +1,4 @@
-
+import { CreateCulturalTraitDto } from './dto/create-cultural-trait.dto';
 import {
   Injectable,
   NotFoundException,
@@ -155,4 +155,59 @@ export class HeritageService {
       },
     });
   }
+  
+  // Get verified cultural traits for a specific village
+  async getCulturalTraitsByVillage(villageId: number) {
+    const village = await this.prisma.village.findUnique({
+      where: { id: villageId },
+      select: { id: true },
+    });
+
+    if (!village) {
+      throw new NotFoundException('Village not found');
+    }
+
+    return this.prisma.culturalTrait.findMany({
+      where: {
+        villageId,
+        status: VerificationStatus.VERIFIED,
+      },
+      orderBy: {
+        id: 'asc',
+      },
+    });
+  }
+
+  
+  // Create a cultural trait with PENDING verification status
+  async createCulturalTrait(
+    villageId: number,
+    dto: CreateCulturalTraitDto,
+    userId: number,
+  ) {
+    const village = await this.prisma.village.findUnique({
+      where: { id: villageId },
+      select: { id: true },
+    });
+
+    if (!village) {
+      throw new NotFoundException('Village not found');
+    }
+
+    await this.ensureSourceExists(dto.sourceId);
+
+    return this.prisma.culturalTrait.create({
+      data: {
+        villageId,
+        category: dto.category,
+        title: dto.title,
+        description: dto.description,
+        sourceId: dto.sourceId,
+        submittedById: userId,
+        status: VerificationStatus.PENDING,
+      },
+    });
+  }
+
+
 }
