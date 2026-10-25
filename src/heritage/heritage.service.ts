@@ -1,3 +1,4 @@
+import { CreateEconomicActivityDto } from './dto/create-economic-activity.dto';
 import { CreateCulturalTraitDto } from './dto/create-cultural-trait.dto';
 import {
   Injectable,
@@ -208,6 +209,64 @@ export class HeritageService {
       },
     });
   }
+
+  
+  // Get verified economic activities for a village
+  async getEconomicActivitiesByVillage(villageId: number) {
+    const village = await this.prisma.village.findUnique({
+      where: { id: villageId },
+      select: { id: true },
+    });
+
+    if (!village) {
+      throw new NotFoundException('Village not found');
+    }
+
+    return this.prisma.economicActivity.findMany({
+      where: {
+        villageId,
+        status: VerificationStatus.VERIFIED,
+      },
+      orderBy: {
+        id: 'asc',
+      },
+    });
+  }
+
+  
+  // Create an economic activity with PENDING verification status
+  async createEconomicActivity(
+    villageId: number,
+    dto: CreateEconomicActivityDto,
+    userId: number,
+  ) {
+    const village = await this.prisma.village.findUnique({
+      where: { id: villageId },
+      select: { id: true },
+    });
+
+    if (!village) {
+      throw new NotFoundException('Village not found');
+    }
+
+    await this.ensureSourceExists(dto.sourceId);
+
+    return this.prisma.economicActivity.create({
+      data: {
+        villageId,
+        type: dto.type,
+        name: dto.name,
+        description: dto.description,
+        importance: dto.importance,
+        yearFrom: dto.yearFrom,
+        yearTo: dto.yearTo,
+        sourceId: dto.sourceId,
+        submittedById: userId,
+        status: VerificationStatus.PENDING,
+      },
+    });
+  }
+
 
 
 }

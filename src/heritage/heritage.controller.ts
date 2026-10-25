@@ -34,4 +34,14 @@ export class HeritageController {
   ) {
     return this.heritageService.getCulturalTraitsByVillage(id);
   }
+
+  
+  // Get verified economic activities for a village
+  @Get(':id/economic-activities')
+  getEconomicActivitiesByVillage(
+    @Param('id', ParseIntPipe) id: number,
+  ) {
+    return this.heritageService.getEconomicActivitiesByVillage(id);
+  }
+
 }

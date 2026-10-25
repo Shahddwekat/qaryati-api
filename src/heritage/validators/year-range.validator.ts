@@ -27,9 +27,17 @@ export function IsYearAfterOrEqual(
             args.object as Record<string, unknown>
           )[args.constraints[0] as string];
 
+          if (typeof value !== 'number' || !Number.isInteger(value)) {
+            return false;
+          }
+
+          // When the start year is optional and missing,
+          // allow the end year without comparing.
+          if (startYear === undefined || startYear === null) {
+            return true;
+          }
+
           if (
-            typeof value !== 'number' ||
-            !Number.isInteger(value) ||
             typeof startYear !== 'number' ||
             !Number.isInteger(startYear)
           ) {
