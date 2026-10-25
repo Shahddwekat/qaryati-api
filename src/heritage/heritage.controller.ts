@@ -14,4 +14,13 @@ export class HeritageController {
   getLandmarksByVillage(@Param('id', ParseIntPipe) id: number) {
     return this.heritageService.getLandmarksByVillage(id);
   }
+
+  
+  @Get(':id/historical-events')
+  getHistoricalEventsByVillage(
+    @Param('id', ParseIntPipe) id: number,
+  ) {
+    return this.heritageService.getHistoricalEventsByVillage(id);
+  }
+
 }

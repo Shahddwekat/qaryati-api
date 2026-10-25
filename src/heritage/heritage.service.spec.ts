@@ -19,6 +19,10 @@ describe('HeritageService', () => {
     findMany: jest.fn(),
     create: jest.fn(),
   },
+
+  historicalEvent: {
+  findMany: jest.fn(),
+ },
  };
 
 
@@ -141,6 +145,51 @@ describe('HeritageService', () => {
 
     expect(prismaMock.source.findUnique).not.toHaveBeenCalled();
     expect(prismaMock.landmark.create).not.toHaveBeenCalled();
+  });
+
+  
+  it('should retrieve verified historical events for a village', async () => {
+    prismaMock.village.findUnique.mockResolvedValue({ id: 1 });
+
+    const events = [
+      {
+        id: 10,
+        title: 'Historical Event',
+        yearFrom: 1948,
+        status: VerificationStatus.VERIFIED,
+      },
+    ];
+
+    prismaMock.historicalEvent.findMany.mockReturnValue(events as never);
+
+    const result = await service.getHistoricalEventsByVillage(1);
+
+    expect(prismaMock.historicalEvent.findMany).toHaveBeenCalledWith({
+      where: {
+        status: VerificationStatus.VERIFIED,
+        villages: {
+          some: {
+            villageId: 1,
+          },
+        },
+      },
+      orderBy: {
+        yearFrom: 'asc',
+      },
+    });
+
+    expect(result).toEqual(events);
+  });
+
+  
+  it('should reject historical events request when village does not exist', async () => {
+    prismaMock.village.findUnique.mockResolvedValue(null);
+
+    await expect(
+      service.getHistoricalEventsByVillage(99999),
+    ).rejects.toThrow(NotFoundException);
+
+    expect(prismaMock.historicalEvent.findMany).not.toHaveBeenCalled();
   });
 
 });

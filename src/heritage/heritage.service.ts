@@ -73,4 +73,31 @@ export class HeritageService {
       },
     });
   }
+
+  
+  async getHistoricalEventsByVillage(villageId: number) {
+    const village = await this.prisma.village.findUnique({
+      where: { id: villageId },
+      select: { id: true },
+    });
+
+    if (!village) {
+      throw new NotFoundException('Village not found');
+    }
+
+    return this.prisma.historicalEvent.findMany({
+      where: {
+        status: VerificationStatus.VERIFIED,
+        villages: {
+          some: {
+            villageId,
+          },
+        },
+      },
+      orderBy: {
+        yearFrom: 'asc',
+      },
+    });
+  }
+
 }
