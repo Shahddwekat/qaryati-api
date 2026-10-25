@@ -1,4 +1,5 @@
 
+import 'dotenv/config';
 
 import { Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
@@ -14,13 +15,26 @@ if (!jwtSecret || jwtSecret.length < 32) {
   );
 }
 
+const accessTokenTtlMinutes = Number(
+  process.env.JWT_ACCESS_TOKEN_TTL_MINUTES ?? '15',
+);
+
+if (
+  !Number.isSafeInteger(accessTokenTtlMinutes) ||
+  accessTokenTtlMinutes < 1
+) {
+  throw new Error(
+    'JWT_ACCESS_TOKEN_TTL_MINUTES must be a positive integer',
+  );
+}
+
 @Module({
   imports: [
     PrismaModule,
     JwtModule.register({
       secret: jwtSecret,
       signOptions: {
-        expiresIn: '15m',
+        expiresIn: accessTokenTtlMinutes * 60,
       },
     }),
   ],

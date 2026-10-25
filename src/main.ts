@@ -1,4 +1,6 @@
 
+import 'dotenv/config';
+
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { AppModule } from './app.module';
@@ -6,8 +8,10 @@ import { AppModule } from './app.module';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
-  // All endpoints will start with /api/v1
-  app.setGlobalPrefix('api/v1');
+  // Version all API routes except the health endpoint
+  app.setGlobalPrefix('api/v1', {
+    exclude: ['health'],
+  });
 
   // Validate incoming request data
   app.useGlobalPipes(

@@ -1,4 +1,6 @@
 
+import 'dotenv/config';
+
 import {
   Injectable,
   ConflictException,
@@ -10,10 +12,21 @@ import { Prisma } from '../generated/prisma/client';
 import * as bcrypt from 'bcryptjs';
 import { createHash, randomBytes } from 'node:crypto';
 
+const refreshTokenDays = Number(
+  process.env.JWT_REFRESH_TOKEN_TTL_DAYS ?? '7',
+);
+
+if (
+  !Number.isSafeInteger(refreshTokenDays) ||
+  refreshTokenDays < 1
+) {
+  throw new Error(
+    'JWT_REFRESH_TOKEN_TTL_DAYS must be a positive integer',
+  );
+}
+
 @Injectable()
 export class AuthService {
-  private readonly refreshTokenDays = 7;
-
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwtService: JwtService,
@@ -29,11 +42,7 @@ export class AuthService {
 
   private getRefreshExpiry(): Date {
     const expiry = new Date();
-
-    expiry.setDate(
-      expiry.getDate() + this.refreshTokenDays,
-    );
-
+    expiry.setDate(expiry.getDate() + refreshTokenDays);
     return expiry;
   }
 
