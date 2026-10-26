@@ -9,7 +9,7 @@ import { HeritageService } from './heritage.service';
 
 @Controller('api/v1/villages')
 export class HeritageController {
-  constructor(private readonly heritageService: HeritageService) {}
+  constructor(private readonly heritageService: HeritageService) { }
 
   // Get verified landmarks for a village
   @Get(':id/landmarks')
@@ -35,13 +35,21 @@ export class HeritageController {
     return this.heritageService.getCulturalTraitsByVillage(id);
   }
 
-  
+
   // Get verified economic activities for a village
   @Get(':id/economic-activities')
   getEconomicActivitiesByVillage(
     @Param('id', ParseIntPipe) id: number,
   ) {
     return this.heritageService.getEconomicActivitiesByVillage(id);
+  }
+
+  // Get verified facilities for a village
+  @Get(':id/facilities')
+  getFacilitiesByVillage(
+    @Param('id', ParseIntPipe) id: number,
+  ) {
+    return this.heritageService.getFacilitiesByVillage(id);
   }
 
 }

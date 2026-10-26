@@ -1,20 +1,27 @@
-import { CreateEconomicActivityDto } from './dto/create-economic-activity.dto';
-import { CreateCulturalTraitDto } from './dto/create-cultural-trait.dto';
+import { CreateFacilityDto } from './dto/create-facility.dto';
 import {
   Injectable,
   NotFoundException,
   BadRequestException,
 } from '@nestjs/common';
+
 import { PrismaService } from '../prisma/prisma.service';
 import { VerificationStatus } from '../generated/prisma/client';
+
 import { CreateLandmarkDto } from './dto/create-landmark.dto';
 import { CreateHistoricalEventDto } from './dto/create-historical-event.dto';
+import { CreateCulturalTraitDto } from './dto/create-cultural-trait.dto';
+import { CreateEconomicActivityDto } from './dto/create-economic-activity.dto';
 
 @Injectable()
 export class HeritageService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) { }
 
-  // Get verified landmarks for a specific village
+  // ========================================
+  // Landmarks
+  // ========================================
+
+  // Get verified landmarks for a village
   async getLandmarksByVillage(villageId: number) {
     const village = await this.prisma.village.findUnique({
       where: { id: villageId },
@@ -45,7 +52,7 @@ export class HeritageService {
     }
   }
 
-  // Create a new landmark with PENDING verification status
+  // Create a landmark with PENDING verification
   async createLandmark(
     villageId: number,
     dto: CreateLandmarkDto,
@@ -80,7 +87,11 @@ export class HeritageService {
     });
   }
 
-  // Get verified historical events for a specific village
+  // ========================================
+  // Historical Events
+  // ========================================
+
+  // Get verified historical events for a village
   async getHistoricalEventsByVillage(villageId: number) {
     const village = await this.prisma.village.findUnique({
       where: { id: villageId },
@@ -111,7 +122,7 @@ export class HeritageService {
     dto: CreateHistoricalEventDto,
     userId: number,
   ) {
-    // 1. Check that the source exists
+
     await this.ensureSourceExists(dto.sourceId);
 
     // 2. Check that all villages exist
@@ -156,8 +167,12 @@ export class HeritageService {
       },
     });
   }
-  
-  // Get verified cultural traits for a specific village
+
+  // ========================================
+  // Cultural Traits
+  // ========================================
+
+  // Get verified cultural traits for a village
   async getCulturalTraitsByVillage(villageId: number) {
     const village = await this.prisma.village.findUnique({
       where: { id: villageId },
@@ -179,8 +194,7 @@ export class HeritageService {
     });
   }
 
-  
-  // Create a cultural trait with PENDING verification status
+  // Create a cultural trait with PENDING verification
   async createCulturalTrait(
     villageId: number,
     dto: CreateCulturalTraitDto,
@@ -210,7 +224,10 @@ export class HeritageService {
     });
   }
 
-  
+  // ========================================
+  // Economic Activities
+  // ========================================
+
   // Get verified economic activities for a village
   async getEconomicActivitiesByVillage(villageId: number) {
     const village = await this.prisma.village.findUnique({
@@ -233,8 +250,7 @@ export class HeritageService {
     });
   }
 
-  
-  // Create an economic activity with PENDING verification status
+  // Create an economic activity with PENDING verification
   async createEconomicActivity(
     villageId: number,
     dto: CreateEconomicActivityDto,
@@ -267,6 +283,64 @@ export class HeritageService {
     });
   }
 
+  // ========================================
+  // Facilities
+  // ========================================
 
+  // Get verified facilities for a village
+  async getFacilitiesByVillage(villageId: number) {
+    const village = await this.prisma.village.findUnique({
+      where: { id: villageId },
+      select: { id: true },
+    });
+
+    if (!village) {
+      throw new NotFoundException('Village not found');
+    }
+
+    return this.prisma.facility.findMany({
+      where: {
+        villageId,
+        verificationStatus: VerificationStatus.VERIFIED,
+      },
+      orderBy: {
+        id: 'asc',
+      },
+    });
+  }
+
+
+  // Create a facility with PENDING verification status
+  async createFacility(
+    villageId: number,
+    dto: CreateFacilityDto,
+    userId: number,
+  ) {
+    const village = await this.prisma.village.findUnique({
+      where: { id: villageId },
+      select: { id: true },
+    });
+
+    if (!village) {
+      throw new NotFoundException('Village not found');
+    }
+
+    await this.ensureSourceExists(dto.sourceId);
+
+    return this.prisma.facility.create({
+      data: {
+        villageId,
+        type: dto.type,
+        name: dto.name,
+        status: dto.status,
+        yearEstablished: dto.yearEstablished,
+        latitude: dto.latitude,
+        longitude: dto.longitude,
+        sourceId: dto.sourceId,
+        submittedById: userId,
+        verificationStatus: VerificationStatus.PENDING,
+      },
+    });
+  }
 
 }

@@ -7,6 +7,8 @@ import {
   CulturalCategory,
   EconomicType,
   Importance,
+  FacilityType,
+  FacilityStatus,
 } from '../generated/prisma/client';
 import { jest } from '@jest/globals';
 import {
@@ -14,7 +16,8 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { HeritageService } from './heritage.service';
-import { PrismaService 
+import {
+  PrismaService
 } from '../prisma/prisma.service';
 
 describe('HeritageService', () => {
@@ -41,10 +44,15 @@ describe('HeritageService', () => {
       create: jest.fn(),
     },
 
-  economicActivity: {
-  findMany: jest.fn(),
-  create: jest.fn(),
-},
+    economicActivity: {
+      findMany: jest.fn(),
+      create: jest.fn(),
+    },
+
+    facility: {
+      findMany: jest.fn(),
+      create: jest.fn(),
+    },
   };
 
   beforeEach(() => {
@@ -208,331 +216,302 @@ describe('HeritageService', () => {
     expect(prismaMock.historicalEvent.findMany).not.toHaveBeenCalled();
   });
 
-  
-it('should create a historical event with PENDING status and village links', async () => {
-  const dto = {
-    title: 'Historical Event',
-    description: 'An important event in village history',
-    category: EventCategory.CULTURAL,
-    datePrecision: DatePrecision.YEAR,
-    yearFrom: 1948,
-    yearTo: 1950,
-    sourceId: 1,
-    villageIds: [1, 2],
-  };
 
-  prismaMock.source.findUnique.mockResolvedValue({ id: 1 });
-  prismaMock.village.findMany.mockReturnValue([
-    { id: 1 },
-    { id: 2 },
-  ] as never);
-
-  const createdEvent = {
-    id: 10,
-    title: dto.title,
-    status: VerificationStatus.PENDING,
-    submittedById: 3,
-    villages: [
-      { eventId: 10, villageId: 1 },
-      { eventId: 10, villageId: 2 },
-    ],
-  };
-
-  prismaMock.historicalEvent.create.mockReturnValue(createdEvent as never);
-
-  const result = await service.createHistoricalEvent(dto, 3);
-
-  expect(prismaMock.source.findUnique).toHaveBeenCalledWith({
-    where: { id: 1 },
-    select: { id: true },
-  });
-
-  expect(prismaMock.village.findMany).toHaveBeenCalledWith({
-    where: { id: { in: [1, 2] } },
-    select: { id: true },
-  });
-
-  expect(prismaMock.historicalEvent.create).toHaveBeenCalledWith({
-    data: expect.objectContaining({
+  it('should create a historical event with PENDING status and village links', async () => {
+    const dto = {
       title: 'Historical Event',
+      description: 'An important event in village history',
+      category: EventCategory.CULTURAL,
+      datePrecision: DatePrecision.YEAR,
+      yearFrom: 1948,
+      yearTo: 1950,
       sourceId: 1,
-      submittedById: 3,
-      status: VerificationStatus.PENDING,
-      villages: {
-        create: [{ villageId: 1 }, { villageId: 2 }],
-      },
-    }),
-    include: { villages: true },
-  });
+      villageIds: [1, 2],
+    };
 
-  expect(result).toEqual(createdEvent);
-});
+    prismaMock.source.findUnique.mockResolvedValue({ id: 1 });
+    prismaMock.village.findMany.mockReturnValue([
+      { id: 1 },
+      { id: 2 },
+    ] as never);
 
-
-it('should reject historical event creation when a village does not exist', async () => {
-  const dto = {
-    title: 'Historical Event',
-    description: 'An important event in village history',
-    category: EventCategory.CULTURAL,
-    datePrecision: DatePrecision.YEAR,
-    yearFrom: 1948,
-    yearTo: 1950,
-    sourceId: 1,
-    villageIds: [1, 99999],
-  };
-
-  prismaMock.source.findUnique.mockResolvedValue({ id: 1 });
-
-  // Only village 1 exists
-  prismaMock.village.findMany.mockReturnValue([
-    { id: 1 },
-  ] as never);
-
-  await expect(
-    service.createHistoricalEvent(dto, 3),
-  ).rejects.toThrow(BadRequestException);
-
-  expect(prismaMock.historicalEvent.create).not.toHaveBeenCalled();
-});
-
-
-it('should reject historical event creation when source does not exist', async () => {
-  const dto = {
-    title: 'Historical Event',
-    description: 'An important event in village history',
-    category: EventCategory.CULTURAL,
-    datePrecision: DatePrecision.YEAR,
-    yearFrom: 1948,
-    yearTo: 1950,
-    sourceId: 99999,
-    villageIds: [1, 2],
-  };
-
-  prismaMock.source.findUnique.mockResolvedValue(null);
-
-  await expect(
-    service.createHistoricalEvent(dto, 3),
-  ).rejects.toThrow(NotFoundException);
-
-  expect(prismaMock.source.findUnique).toHaveBeenCalledWith({
-    where: { id: 99999 },
-    select: { id: true },
-  });
-
-  expect(prismaMock.village.findMany).not.toHaveBeenCalled();
-  expect(prismaMock.historicalEvent.create).not.toHaveBeenCalled();
-});
-
-
-it('should return verified cultural traits for an existing village', async () => {
-  prismaMock.village.findUnique.mockResolvedValue({ id: 1 });
-
-  const traits = [
-    {
+    const createdEvent = {
       id: 10,
-      villageId: 1,
-      title: 'التطريز الفلسطيني',
-      category: 'CRAFT',
-      status: VerificationStatus.VERIFIED,
-    },
-  ];
+      title: dto.title,
+      status: VerificationStatus.PENDING,
+      submittedById: 3,
+      villages: [
+        { eventId: 10, villageId: 1 },
+        { eventId: 10, villageId: 2 },
+      ],
+    };
 
-  prismaMock.culturalTrait.findMany.mockReturnValue(traits as never);
+    prismaMock.historicalEvent.create.mockReturnValue(createdEvent as never);
 
-  const result = await service.getCulturalTraitsByVillage(1);
+    const result = await service.createHistoricalEvent(dto, 3);
 
-  expect(prismaMock.village.findUnique).toHaveBeenCalledWith({
-    where: { id: 1 },
-    select: { id: true },
+    expect(prismaMock.source.findUnique).toHaveBeenCalledWith({
+      where: { id: 1 },
+      select: { id: true },
+    });
+
+    expect(prismaMock.village.findMany).toHaveBeenCalledWith({
+      where: { id: { in: [1, 2] } },
+      select: { id: true },
+    });
+
+    expect(prismaMock.historicalEvent.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        title: 'Historical Event',
+        sourceId: 1,
+        submittedById: 3,
+        status: VerificationStatus.PENDING,
+        villages: {
+          create: [{ villageId: 1 }, { villageId: 2 }],
+        },
+      }),
+      include: { villages: true },
+    });
+
+    expect(result).toEqual(createdEvent);
   });
 
-  expect(prismaMock.culturalTrait.findMany).toHaveBeenCalledWith({
-    where: {
-      villageId: 1,
-      status: VerificationStatus.VERIFIED,
-    },
-    orderBy: {
-      id: 'asc',
-    },
+
+  it('should reject historical event creation when a village does not exist', async () => {
+    const dto = {
+      title: 'Historical Event',
+      description: 'An important event in village history',
+      category: EventCategory.CULTURAL,
+      datePrecision: DatePrecision.YEAR,
+      yearFrom: 1948,
+      yearTo: 1950,
+      sourceId: 1,
+      villageIds: [1, 99999],
+    };
+
+    prismaMock.source.findUnique.mockResolvedValue({ id: 1 });
+
+    // Only village 1 exists
+    prismaMock.village.findMany.mockReturnValue([
+      { id: 1 },
+    ] as never);
+
+    await expect(
+      service.createHistoricalEvent(dto, 3),
+    ).rejects.toThrow(BadRequestException);
+
+    expect(prismaMock.historicalEvent.create).not.toHaveBeenCalled();
   });
 
-  expect(result).toEqual(traits);
-});
 
+  it('should reject historical event creation when source does not exist', async () => {
+    const dto = {
+      title: 'Historical Event',
+      description: 'An important event in village history',
+      category: EventCategory.CULTURAL,
+      datePrecision: DatePrecision.YEAR,
+      yearFrom: 1948,
+      yearTo: 1950,
+      sourceId: 99999,
+      villageIds: [1, 2],
+    };
 
-it('should reject cultural traits request when village does not exist', async () => {
-  prismaMock.village.findUnique.mockResolvedValue(null);
+    prismaMock.source.findUnique.mockResolvedValue(null);
 
-  await expect(
-    service.getCulturalTraitsByVillage(99999),
-  ).rejects.toThrow(NotFoundException);
+    await expect(
+      service.createHistoricalEvent(dto, 3),
+    ).rejects.toThrow(NotFoundException);
 
-  expect(prismaMock.village.findUnique).toHaveBeenCalledWith({
-    where: { id: 99999 },
-    select: { id: true },
+    expect(prismaMock.source.findUnique).toHaveBeenCalledWith({
+      where: { id: 99999 },
+      select: { id: true },
+    });
+
+    expect(prismaMock.village.findMany).not.toHaveBeenCalled();
+    expect(prismaMock.historicalEvent.create).not.toHaveBeenCalled();
   });
 
-  expect(prismaMock.culturalTrait.findMany).not.toHaveBeenCalled();
-});
 
-  
-it('should create a cultural trait with PENDING status', async () => {
-  const dto = {
-    category: CulturalCategory.CRAFT,
-    title: 'التطريز الفلسطيني',
-    description: 'حرفة تراثية فلسطينية',
-    sourceId: 1,
-  };
+  it('should return verified cultural traits for an existing village', async () => {
+    prismaMock.village.findUnique.mockResolvedValue({ id: 1 });
 
-  prismaMock.village.findUnique.mockResolvedValue({ id: 1 });
-  prismaMock.source.findUnique.mockResolvedValue({ id: 1 });
+    const traits = [
+      {
+        id: 10,
+        villageId: 1,
+        title: 'التطريز الفلسطيني',
+        category: 'CRAFT',
+        status: VerificationStatus.VERIFIED,
+      },
+    ];
 
-  const createdTrait = {
-    id: 10,
-    villageId: 1,
-    ...dto,
-    submittedById: 3,
-    status: VerificationStatus.PENDING,
-  };
+    prismaMock.culturalTrait.findMany.mockReturnValue(traits as never);
 
-  prismaMock.culturalTrait.create.mockReturnValue(
-    createdTrait as never,
-  );
+    const result = await service.getCulturalTraitsByVillage(1);
 
-  const result = await service.createCulturalTrait(1, dto, 3);
+    expect(prismaMock.village.findUnique).toHaveBeenCalledWith({
+      where: { id: 1 },
+      select: { id: true },
+    });
 
-  expect(prismaMock.culturalTrait.create).toHaveBeenCalledWith({
-    data: {
-      villageId: 1,
+    expect(prismaMock.culturalTrait.findMany).toHaveBeenCalledWith({
+      where: {
+        villageId: 1,
+        status: VerificationStatus.VERIFIED,
+      },
+      orderBy: {
+        id: 'asc',
+      },
+    });
+
+    expect(result).toEqual(traits);
+  });
+
+
+  it('should reject cultural traits request when village does not exist', async () => {
+    prismaMock.village.findUnique.mockResolvedValue(null);
+
+    await expect(
+      service.getCulturalTraitsByVillage(99999),
+    ).rejects.toThrow(NotFoundException);
+
+    expect(prismaMock.village.findUnique).toHaveBeenCalledWith({
+      where: { id: 99999 },
+      select: { id: true },
+    });
+
+    expect(prismaMock.culturalTrait.findMany).not.toHaveBeenCalled();
+  });
+
+
+  it('should create a cultural trait with PENDING status', async () => {
+    const dto = {
       category: CulturalCategory.CRAFT,
       title: 'التطريز الفلسطيني',
       description: 'حرفة تراثية فلسطينية',
       sourceId: 1,
-      submittedById: 3,
-      status: VerificationStatus.PENDING,
-    },
-  });
+    };
 
-  expect(result).toEqual(createdTrait);
-});
+    prismaMock.village.findUnique.mockResolvedValue({ id: 1 });
+    prismaMock.source.findUnique.mockResolvedValue({ id: 1 });
 
-
-it('should reject cultural trait creation when source does not exist', async () => {
-  const dto = {
-    category: CulturalCategory.CRAFT,
-    title: 'التطريز الفلسطيني',
-    description: 'حرفة تراثية فلسطينية',
-    sourceId: 99999,
-  };
-
-  prismaMock.village.findUnique.mockResolvedValue({ id: 1 });
-  prismaMock.source.findUnique.mockResolvedValue(null);
-
-  await expect(
-    service.createCulturalTrait(1, dto, 3),
-  ).rejects.toThrow(NotFoundException);
-
-  expect(prismaMock.source.findUnique).toHaveBeenCalledWith({
-    where: { id: 99999 },
-    select: { id: true },
-  });
-
-  expect(prismaMock.culturalTrait.create).not.toHaveBeenCalled();
-});
-
-
-it('should reject cultural trait creation when village does not exist', async () => {
-  const dto = {
-    category: CulturalCategory.CRAFT,
-    title: 'التطريز الفلسطيني',
-    description: 'حرفة تراثية فلسطينية',
-    sourceId: 1,
-  };
-
-  prismaMock.village.findUnique.mockResolvedValue(null);
-
-  await expect(
-    service.createCulturalTrait(99999, dto, 3),
-  ).rejects.toThrow(NotFoundException);
-
-  expect(prismaMock.village.findUnique).toHaveBeenCalledWith({
-    where: { id: 99999 },
-    select: { id: true },
-  });
-
-  expect(prismaMock.source.findUnique).not.toHaveBeenCalled();
-  expect(prismaMock.culturalTrait.create).not.toHaveBeenCalled();
-});
-
-
-it('should return verified economic activities for a village', async () => {
-  prismaMock.village.findUnique.mockResolvedValue({ id: 1 });
-
-  const activities = [
-    {
+    const createdTrait = {
       id: 10,
       villageId: 1,
-      name: 'زراعة الزيتون',
-      status: VerificationStatus.VERIFIED,
-    },
-  ];
+      ...dto,
+      submittedById: 3,
+      status: VerificationStatus.PENDING,
+    };
 
-  prismaMock.economicActivity.findMany.mockReturnValue(
-    activities as never,
-  );
+    prismaMock.culturalTrait.create.mockReturnValue(
+      createdTrait as never,
+    );
 
-  const result = await service.getEconomicActivitiesByVillage(1);
+    const result = await service.createCulturalTrait(1, dto, 3);
 
-  expect(prismaMock.village.findUnique).toHaveBeenCalledWith({
-    where: { id: 1 },
-    select: { id: true },
+    expect(prismaMock.culturalTrait.create).toHaveBeenCalledWith({
+      data: {
+        villageId: 1,
+        category: CulturalCategory.CRAFT,
+        title: 'التطريز الفلسطيني',
+        description: 'حرفة تراثية فلسطينية',
+        sourceId: 1,
+        submittedById: 3,
+        status: VerificationStatus.PENDING,
+      },
+    });
+
+    expect(result).toEqual(createdTrait);
   });
 
-  expect(prismaMock.economicActivity.findMany).toHaveBeenCalledWith({
-    where: {
-      villageId: 1,
-      status: VerificationStatus.VERIFIED,
-    },
-    orderBy: {
-      id: 'asc',
-    },
+
+  it('should reject cultural trait creation when source does not exist', async () => {
+    const dto = {
+      category: CulturalCategory.CRAFT,
+      title: 'التطريز الفلسطيني',
+      description: 'حرفة تراثية فلسطينية',
+      sourceId: 99999,
+    };
+
+    prismaMock.village.findUnique.mockResolvedValue({ id: 1 });
+    prismaMock.source.findUnique.mockResolvedValue(null);
+
+    await expect(
+      service.createCulturalTrait(1, dto, 3),
+    ).rejects.toThrow(NotFoundException);
+
+    expect(prismaMock.source.findUnique).toHaveBeenCalledWith({
+      where: { id: 99999 },
+      select: { id: true },
+    });
+
+    expect(prismaMock.culturalTrait.create).not.toHaveBeenCalled();
   });
 
-  expect(result).toEqual(activities);
-});
+
+  it('should reject cultural trait creation when village does not exist', async () => {
+    const dto = {
+      category: CulturalCategory.CRAFT,
+      title: 'التطريز الفلسطيني',
+      description: 'حرفة تراثية فلسطينية',
+      sourceId: 1,
+    };
+
+    prismaMock.village.findUnique.mockResolvedValue(null);
+
+    await expect(
+      service.createCulturalTrait(99999, dto, 3),
+    ).rejects.toThrow(NotFoundException);
+
+    expect(prismaMock.village.findUnique).toHaveBeenCalledWith({
+      where: { id: 99999 },
+      select: { id: true },
+    });
+
+    expect(prismaMock.source.findUnique).not.toHaveBeenCalled();
+    expect(prismaMock.culturalTrait.create).not.toHaveBeenCalled();
+  });
 
 
-it('should create an economic activity with PENDING status', async () => {
-  const dto = {
-    type: EconomicType.AGRICULTURE,
-    name: 'زراعة الزيتون',
-    description: 'إنتاج الزيتون وزيت الزيتون',
-    importance: Importance.MAIN,
-    yearFrom: 1950,
-    yearTo: 2020,
-    sourceId: 1,
-  };
+  it('should return verified economic activities for a village', async () => {
+    prismaMock.village.findUnique.mockResolvedValue({ id: 1 });
 
-  prismaMock.village.findUnique.mockResolvedValue({ id: 1 });
-  prismaMock.source.findUnique.mockResolvedValue({ id: 1 });
+    const activities = [
+      {
+        id: 10,
+        villageId: 1,
+        name: 'زراعة الزيتون',
+        status: VerificationStatus.VERIFIED,
+      },
+    ];
 
-  const createdActivity = {
-    id: 10,
-    villageId: 1,
-    ...dto,
-    submittedById: 3,
-    status: VerificationStatus.PENDING,
-  };
+    prismaMock.economicActivity.findMany.mockReturnValue(
+      activities as never,
+    );
 
-  prismaMock.economicActivity.create.mockReturnValue(
-    createdActivity as never,
-  );
+    const result = await service.getEconomicActivitiesByVillage(1);
 
-  const result = await service.createEconomicActivity(1, dto, 3);
+    expect(prismaMock.village.findUnique).toHaveBeenCalledWith({
+      where: { id: 1 },
+      select: { id: true },
+    });
 
-  expect(prismaMock.economicActivity.create).toHaveBeenCalledWith({
-    data: {
-      villageId: 1,
+    expect(prismaMock.economicActivity.findMany).toHaveBeenCalledWith({
+      where: {
+        villageId: 1,
+        status: VerificationStatus.VERIFIED,
+      },
+      orderBy: {
+        id: 'asc',
+      },
+    });
+
+    expect(result).toEqual(activities);
+  });
+
+
+  it('should create an economic activity with PENDING status', async () => {
+    const dto = {
       type: EconomicType.AGRICULTURE,
       name: 'زراعة الزيتون',
       description: 'إنتاج الزيتون وزيت الزيتون',
@@ -540,77 +519,257 @@ it('should create an economic activity with PENDING status', async () => {
       yearFrom: 1950,
       yearTo: 2020,
       sourceId: 1,
+    };
+
+    prismaMock.village.findUnique.mockResolvedValue({ id: 1 });
+    prismaMock.source.findUnique.mockResolvedValue({ id: 1 });
+
+    const createdActivity = {
+      id: 10,
+      villageId: 1,
+      ...dto,
       submittedById: 3,
       status: VerificationStatus.PENDING,
-    },
+    };
+
+    prismaMock.economicActivity.create.mockReturnValue(
+      createdActivity as never,
+    );
+
+    const result = await service.createEconomicActivity(1, dto, 3);
+
+    expect(prismaMock.economicActivity.create).toHaveBeenCalledWith({
+      data: {
+        villageId: 1,
+        type: EconomicType.AGRICULTURE,
+        name: 'زراعة الزيتون',
+        description: 'إنتاج الزيتون وزيت الزيتون',
+        importance: Importance.MAIN,
+        yearFrom: 1950,
+        yearTo: 2020,
+        sourceId: 1,
+        submittedById: 3,
+        status: VerificationStatus.PENDING,
+      },
+    });
+
+    expect(result).toEqual(createdActivity);
   });
 
-  expect(result).toEqual(createdActivity);
-});
 
+  it('should reject economic activity creation when village does not exist', async () => {
+    const dto = {
+      type: EconomicType.AGRICULTURE,
+      name: 'زراعة الزيتون',
+      importance: Importance.MAIN,
+      sourceId: 1,
+    };
 
-it('should reject economic activity creation when village does not exist', async () => {
-  const dto = {
-    type: EconomicType.AGRICULTURE,
-    name: 'زراعة الزيتون',
-    importance: Importance.MAIN,
-    sourceId: 1,
-  };
+    prismaMock.village.findUnique.mockResolvedValue(null);
 
-  prismaMock.village.findUnique.mockResolvedValue(null);
+    await expect(
+      service.createEconomicActivity(99999, dto, 3),
+    ).rejects.toThrow(NotFoundException);
 
-  await expect(
-    service.createEconomicActivity(99999, dto, 3),
-  ).rejects.toThrow(NotFoundException);
+    expect(prismaMock.village.findUnique).toHaveBeenCalledWith({
+      where: { id: 99999 },
+      select: { id: true },
+    });
 
-  expect(prismaMock.village.findUnique).toHaveBeenCalledWith({
-    where: { id: 99999 },
-    select: { id: true },
+    expect(prismaMock.source.findUnique).not.toHaveBeenCalled();
+    expect(prismaMock.economicActivity.create).not.toHaveBeenCalled();
   });
 
-  expect(prismaMock.source.findUnique).not.toHaveBeenCalled();
-  expect(prismaMock.economicActivity.create).not.toHaveBeenCalled();
-});
 
+  it('should reject economic activity creation when source does not exist', async () => {
+    const dto = {
+      type: EconomicType.AGRICULTURE,
+      name: 'زراعة الزيتون',
+      importance: Importance.MAIN,
+      sourceId: 99999,
+    };
 
-it('should reject economic activity creation when source does not exist', async () => {
-  const dto = {
-    type: EconomicType.AGRICULTURE,
-    name: 'زراعة الزيتون',
-    importance: Importance.MAIN,
-    sourceId: 99999,
-  };
+    prismaMock.village.findUnique.mockResolvedValue({ id: 1 });
+    prismaMock.source.findUnique.mockResolvedValue(null);
 
-  prismaMock.village.findUnique.mockResolvedValue({ id: 1 });
-  prismaMock.source.findUnique.mockResolvedValue(null);
+    await expect(
+      service.createEconomicActivity(1, dto, 3),
+    ).rejects.toThrow(NotFoundException);
 
-  await expect(
-    service.createEconomicActivity(1, dto, 3),
-  ).rejects.toThrow(NotFoundException);
+    expect(prismaMock.source.findUnique).toHaveBeenCalledWith({
+      where: { id: 99999 },
+      select: { id: true },
+    });
 
-  expect(prismaMock.source.findUnique).toHaveBeenCalledWith({
-    where: { id: 99999 },
-    select: { id: true },
+    expect(prismaMock.economicActivity.create).not.toHaveBeenCalled();
   });
 
-  expect(prismaMock.economicActivity.create).not.toHaveBeenCalled();
-});
 
+  it('should reject economic activities request when village does not exist', async () => {
+    prismaMock.village.findUnique.mockResolvedValue(null);
 
-it('should reject economic activities request when village does not exist', async () => {
-  prismaMock.village.findUnique.mockResolvedValue(null);
+    await expect(
+      service.getEconomicActivitiesByVillage(99999),
+    ).rejects.toThrow(NotFoundException);
 
-  await expect(
-    service.getEconomicActivitiesByVillage(99999),
-  ).rejects.toThrow(NotFoundException);
+    expect(prismaMock.village.findUnique).toHaveBeenCalledWith({
+      where: { id: 99999 },
+      select: { id: true },
+    });
 
-  expect(prismaMock.village.findUnique).toHaveBeenCalledWith({
-    where: { id: 99999 },
-    select: { id: true },
+    expect(prismaMock.economicActivity.findMany).not.toHaveBeenCalled();
   });
 
-  expect(prismaMock.economicActivity.findMany).not.toHaveBeenCalled();
-});
 
+
+  it('should create a facility with PENDING verification status', async () => {
+    const dto = {
+      type: FacilityType.SCHOOL,
+      name: 'مدرسة القرية',
+      status: FacilityStatus.ACTIVE,
+      yearEstablished: 1990,
+      latitude: 32.2211,
+      longitude: 35.2544,
+      sourceId: 1,
+    };
+
+    prismaMock.village.findUnique.mockResolvedValue({ id: 1 });
+    prismaMock.source.findUnique.mockResolvedValue({ id: 1 });
+
+    const createdFacility = {
+      id: 10,
+      villageId: 1,
+      ...dto,
+      submittedById: 3,
+      verificationStatus: VerificationStatus.PENDING,
+    };
+
+    prismaMock.facility.create.mockReturnValue(
+      createdFacility as never,
+    );
+
+    const result = await service.createFacility(1, dto, 3);
+
+    expect(prismaMock.facility.create).toHaveBeenCalledWith({
+      data: {
+        villageId: 1,
+        type: FacilityType.SCHOOL,
+        name: 'مدرسة القرية',
+        status: FacilityStatus.ACTIVE,
+        yearEstablished: 1990,
+        latitude: 32.2211,
+        longitude: 35.2544,
+        sourceId: 1,
+        submittedById: 3,
+        verificationStatus: VerificationStatus.PENDING,
+      },
+    });
+
+    expect(result).toEqual(createdFacility);
+  });
+
+
+  it('should reject facility creation when village does not exist', async () => {
+    const dto = {
+      type: FacilityType.SCHOOL,
+      name: 'مدرسة القرية',
+      status: FacilityStatus.ACTIVE,
+      sourceId: 1,
+    };
+
+    prismaMock.village.findUnique.mockResolvedValue(null);
+
+    await expect(
+      service.createFacility(99999, dto, 3),
+    ).rejects.toThrow(NotFoundException);
+
+    expect(prismaMock.village.findUnique).toHaveBeenCalledWith({
+      where: { id: 99999 },
+      select: { id: true },
+    });
+
+    expect(prismaMock.source.findUnique).not.toHaveBeenCalled();
+    expect(prismaMock.facility.create).not.toHaveBeenCalled();
+  });
+
+
+  it('should reject facility creation when source does not exist', async () => {
+    const dto = {
+      type: FacilityType.SCHOOL,
+      name: 'مدرسة القرية',
+      status: FacilityStatus.ACTIVE,
+      sourceId: 99999,
+    };
+
+    prismaMock.village.findUnique.mockResolvedValue({ id: 1 });
+    prismaMock.source.findUnique.mockResolvedValue(null);
+
+    await expect(
+      service.createFacility(1, dto, 3),
+    ).rejects.toThrow(NotFoundException);
+
+    expect(prismaMock.source.findUnique).toHaveBeenCalledWith({
+      where: { id: 99999 },
+      select: { id: true },
+    });
+
+    expect(prismaMock.facility.create).not.toHaveBeenCalled();
+  });
+
+
+  it('should return verified facilities for an existing village', async () => {
+    prismaMock.village.findUnique.mockResolvedValue({ id: 1 });
+
+    const facilities = [
+      {
+        id: 10,
+        villageId: 1,
+        name: 'مدرسة القرية',
+        type: FacilityType.SCHOOL,
+        status: FacilityStatus.ACTIVE,
+        verificationStatus: VerificationStatus.VERIFIED,
+      },
+      {
+        id: 11,
+        villageId: 1,
+        name: 'العيادة القديمة',
+        type: FacilityType.CLINIC,
+        status: FacilityStatus.CLOSED,
+        verificationStatus: VerificationStatus.VERIFIED,
+      },
+    ];
+
+    prismaMock.facility.findMany.mockReturnValue(facilities as never);
+
+    const result = await service.getFacilitiesByVillage(1);
+
+    expect(prismaMock.facility.findMany).toHaveBeenCalledWith({
+      where: {
+        villageId: 1,
+        verificationStatus: VerificationStatus.VERIFIED,
+      },
+      orderBy: {
+        id: 'asc',
+      },
+    });
+
+    expect(result).toEqual(facilities);
+  });
+
+
+  it('should reject facilities request when village does not exist', async () => {
+    prismaMock.village.findUnique.mockResolvedValue(null);
+
+    await expect(
+      service.getFacilitiesByVillage(99999),
+    ).rejects.toThrow(NotFoundException);
+
+    expect(prismaMock.village.findUnique).toHaveBeenCalledWith({
+      where: { id: 99999 },
+      select: { id: true },
+    });
+
+    expect(prismaMock.facility.findMany).not.toHaveBeenCalled();
+  });
 
 });
