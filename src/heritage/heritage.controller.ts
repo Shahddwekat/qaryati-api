@@ -1,15 +1,30 @@
-
+import { CreateHistoricalEventDto } from './dto/create-historical-event.dto';
 import {
+  Body,
   Controller,
   Get,
   Param,
   ParseIntPipe,
+  Post,
+  UseGuards,
 } from '@nestjs/common';
-import { HeritageService } from './heritage.service';
+import { CreateFacilityDto } from './dto/create-facility.dto';
+import { CreateCulturalTraitDto } from './dto/create-cultural-trait.dto';
+import { CreateEconomicActivityDto } from './dto/create-economic-activity.dto';
+import { UserRole } from '../generated/prisma/client';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { Roles } from '../auth/roles.decorator';
+import { CurrentUser } from '../common/decorators/current-user.decorator';
 
-@Controller('api/v1/villages')
+import { HeritageService } from './heritage.service';
+import { CreateLandmarkDto } from './dto/create-landmark.dto';
+
+@Controller('villages')
 export class HeritageController {
-  constructor(private readonly heritageService: HeritageService) { }
+  constructor(
+    private readonly heritageService: HeritageService,
+  ) { }
 
   // Get verified landmarks for a village
   @Get(':id/landmarks')
@@ -17,6 +32,22 @@ export class HeritageController {
     @Param('id', ParseIntPipe) id: number,
   ) {
     return this.heritageService.getLandmarksByVillage(id);
+  }
+
+  // Create a landmark (authentication required)
+  @Post(':id/landmarks')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN, UserRole.CONTRIBUTOR)
+  createLandmark(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: CreateLandmarkDto,
+    @CurrentUser('id') userId: number,
+  ) {
+    return this.heritageService.createLandmark(
+      id,
+      dto,
+      userId,
+    );
   }
 
   // Get verified historical events for a village
@@ -51,5 +82,73 @@ export class HeritageController {
   ) {
     return this.heritageService.getFacilitiesByVillage(id);
   }
+
+
+  // Create a historical event (authentication required)
+  @Post('historical-events')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN, UserRole.CONTRIBUTOR)
+  createHistoricalEvent(
+    @Body() dto: CreateHistoricalEventDto,
+    @CurrentUser('id') userId: number,
+  ) {
+    return this.heritageService.createHistoricalEvent(
+      dto,
+      userId,
+    );
+  }
+
+
+  // Create a cultural trait (authentication required)
+  @Post(':id/cultural-traits')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN, UserRole.CONTRIBUTOR)
+  createCulturalTrait(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: CreateCulturalTraitDto,
+    @CurrentUser('id') userId: number,
+  ) {
+    return this.heritageService.createCulturalTrait(
+      id,
+      dto,
+      userId,
+    );
+  }
+
+
+
+  // Create an economic activity (authentication required)
+  @Post(':id/economic-activities')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN, UserRole.CONTRIBUTOR)
+  createEconomicActivity(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: CreateEconomicActivityDto,
+    @CurrentUser('id') userId: number,
+  ) {
+    return this.heritageService.createEconomicActivity(
+      id,
+      dto,
+      userId,
+    );
+  }
+
+
+  // Create a facility (authentication required)
+  @Post(':id/facilities')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN, UserRole.CONTRIBUTOR)
+  createFacility(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: CreateFacilityDto,
+    @CurrentUser('id') userId: number,
+  ) {
+    return this.heritageService.createFacility(
+      id,
+      dto,
+      userId,
+    );
+  }
+
 
 }
