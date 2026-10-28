@@ -11,13 +11,9 @@ import {
   IsArray,
   ArrayNotEmpty,
   ArrayUnique,
-  ValidateIf,
 } from 'class-validator';
 
-import {
-  EventCategory,
-  DatePrecision,
-} from '../../generated/prisma/client';
+import { EventCategory, DatePrecision } from '../../generated/prisma/client';
 
 export class CreateHistoricalEventDto {
   @IsString()
