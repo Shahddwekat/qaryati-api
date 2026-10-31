@@ -8,6 +8,8 @@ import { HeritageModule } from './heritage/heritage.module';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { AuditModule } from './audit/audit.module';
+import { SourcesModule } from './sources/sources.module';
+
 
 @Module({
   imports: [
@@ -16,7 +18,8 @@ import { AuditModule } from './audit/audit.module';
     HeritageModule,
     AuthModule,
     UsersModule,
-    AuditModule,
+        AuditModule,
+        SourcesModule,
   ],
   controllers: [AppController],
   providers: [AppService],
