@@ -26,14 +26,7 @@ export class HeritageService {
 
   // Get verified landmarks for a village
   async getLandmarksByVillage(villageId: number) {
-    const village = await this.prisma.village.findUnique({
-      where: { id: villageId },
-      select: { id: true },
-    });
-
-    if (!village) {
-      throw new NotFoundException('Village not found');
-    }
+    await this.ensureVillageExists(villageId);
 
     return this.prisma.landmark.findMany({
       where: {
@@ -53,6 +46,18 @@ export class HeritageService {
     });
   }
 
+  // Throw 404 if the village does not exist or is hidden (soft-deleted)
+  private async ensureVillageExists(villageId: number): Promise<void> {
+    const village = await this.prisma.village.findFirst({
+      where: { id: villageId, deletedAt: null },
+      select: { id: true },
+    });
+
+    if (!village) {
+      throw new NotFoundException('Village not found');
+    }
+  }
+
   // Check if the source exists
   private async ensureSourceExists(sourceId: number): Promise<void> {
     const source = await this.prisma.source.findUnique({
@@ -66,23 +71,12 @@ export class HeritageService {
   }
 
   // Create a landmark with PENDING verification
-  // Create a landmark with PENDING verification
   async createLandmark(
     villageId: number,
     dto: CreateLandmarkDto,
     userId: number,
   ) {
-    const village = await this.prisma.village.findFirst({
-      where: {
-        id: villageId,
-        deletedAt: null,
-      },
-      select: { id: true },
-    });
-
-    if (!village) {
-      throw new NotFoundException('Village not found');
-    }
+    await this.ensureVillageExists(villageId);
 
     await this.ensureSourceExists(dto.sourceId);
 
@@ -129,14 +123,7 @@ export class HeritageService {
 
   // Get verified historical events for a village
   async getHistoricalEventsByVillage(villageId: number) {
-    const village = await this.prisma.village.findUnique({
-      where: { id: villageId },
-      select: { id: true },
-    });
-
-    if (!village) {
-      throw new NotFoundException('Village not found');
-    }
+    await this.ensureVillageExists(villageId);
 
     return this.prisma.historicalEvent.findMany({
       where: {
@@ -235,14 +222,7 @@ export class HeritageService {
 
   // Get verified cultural traits for a village
   async getCulturalTraitsByVillage(villageId: number) {
-    const village = await this.prisma.village.findUnique({
-      where: { id: villageId },
-      select: { id: true },
-    });
-
-    if (!village) {
-      throw new NotFoundException('Village not found');
-    }
+    await this.ensureVillageExists(villageId);
 
     return this.prisma.culturalTrait.findMany({
       where: {
@@ -271,17 +251,7 @@ export class HeritageService {
     dto: CreateCulturalTraitDto,
     userId: number,
   ) {
-    const village = await this.prisma.village.findFirst({
-      where: {
-        id: villageId,
-        deletedAt: null,
-      },
-      select: { id: true },
-    });
-
-    if (!village) {
-      throw new NotFoundException('Village not found');
-    }
+    await this.ensureVillageExists(villageId);
 
     await this.ensureSourceExists(dto.sourceId);
 
@@ -324,14 +294,7 @@ export class HeritageService {
 
   // Get verified economic activities for a village
   async getEconomicActivitiesByVillage(villageId: number) {
-    const village = await this.prisma.village.findUnique({
-      where: { id: villageId },
-      select: { id: true },
-    });
-
-    if (!village) {
-      throw new NotFoundException('Village not found');
-    }
+    await this.ensureVillageExists(villageId);
 
     return this.prisma.economicActivity.findMany({
       where: {
@@ -360,18 +323,7 @@ export class HeritageService {
     dto: CreateEconomicActivityDto,
     userId: number,
   ) {
-    // Check that the village exists and is not soft-deleted
-    const village = await this.prisma.village.findFirst({
-      where: {
-        id: villageId,
-        deletedAt: null,
-      },
-      select: { id: true },
-    });
-
-    if (!village) {
-      throw new NotFoundException('Village not found');
-    }
+    await this.ensureVillageExists(villageId);
 
     await this.ensureSourceExists(dto.sourceId);
 
@@ -418,14 +370,7 @@ export class HeritageService {
 
   // Get verified facilities for a village
   async getFacilitiesByVillage(villageId: number) {
-    const village = await this.prisma.village.findUnique({
-      where: { id: villageId },
-      select: { id: true },
-    });
-
-    if (!village) {
-      throw new NotFoundException('Village not found');
-    }
+    await this.ensureVillageExists(villageId);
 
     return this.prisma.facility.findMany({
       where: {
@@ -454,18 +399,7 @@ export class HeritageService {
     dto: CreateFacilityDto,
     userId: number,
   ) {
-    // Check that the village exists and is not soft-deleted
-    const village = await this.prisma.village.findFirst({
-      where: {
-        id: villageId,
-        deletedAt: null,
-      },
-      select: { id: true },
-    });
-
-    if (!village) {
-      throw new NotFoundException('Village not found');
-    }
+    await this.ensureVillageExists(villageId);
 
     await this.ensureSourceExists(dto.sourceId);
 
