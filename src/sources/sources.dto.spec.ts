@@ -46,7 +46,10 @@ describe('ListSourcesQueryDto', () => {
   });
 
   it('converts numeric strings from the query string', async () => {
-    const dto = plainToInstance(ListSourcesQueryDto, { page: '2', limit: '50' });
+    const dto = plainToInstance(ListSourcesQueryDto, {
+      page: '2',
+      limit: '50',
+    });
     expect(dto.page).toBe(2);
     expect(await validate(dto)).toEqual([]);
   });
