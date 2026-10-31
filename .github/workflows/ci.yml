@@ -1,0 +1,61 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    # A real MySQL for the end-to-end tests (same version as docker-compose.yml).
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_DATABASE: qaryati
+          MYSQL_USER: qaryati
+          MYSQL_PASSWORD: change-me
+          MYSQL_ROOT_PASSWORD: change-me-root
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h localhost -u root -pchange-me-root"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Create .env from the example
+        run: |
+          cp .env.example .env
+          sed -i 's/^DB_HOST=.*/DB_HOST=127.0.0.1/' .env
+          sed -i 's#@localhost:#@127.0.0.1:#' .env
+
+      - name: Install dependencies (also generates the Prisma client)
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Build
+        run: npm run build
+
+      - name: Unit tests
+        run: npm test
+
+      - name: Create tables and seed data
+        run: |
+          npx prisma migrate deploy
+          npx prisma db seed
+
+      - name: End-to-end tests
+        run: npm run test:e2e
