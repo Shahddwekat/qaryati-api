@@ -68,6 +68,19 @@ Useful commands:
 | `npx prisma migrate dev --name <change>` | after editing `schema.prisma`: create and apply a new migration |
 | `npx prisma db seed` | add the development data again |
 
+## Tests
+| Command | What it runs |
+|---|---|
+| `npm test` | all unit tests (every module) |
+| `npm run test:cov` | unit tests + coverage report in `coverage/` |
+| `npm run test:e2e` | end-to-end tests against the real database (needs MySQL running, migrated and seeded) |
+| `npm run lint` | lint checks |
+| `npm run format:check` | Prettier formatting check |
+
+Every pull request is checked automatically by GitHub Actions (`.github/workflows/ci.yml`):
+lint, build, unit tests, then migrations + seed + end-to-end tests on a real MySQL 8.4.
+Please wait for the green check before merging.
+
 ## Documentation
 - [Contributing guide](CONTRIBUTING.md)
 - [Architecture Decision Records](docs/adr/)
