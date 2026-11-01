@@ -9,6 +9,7 @@ import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { AuditModule } from './audit/audit.module';
 import { SourcesModule } from './sources/sources.module';
+import { VerificationModule } from './verification/verification.module';
 
 
 @Module({
@@ -18,8 +19,10 @@ import { SourcesModule } from './sources/sources.module';
     HeritageModule,
     AuthModule,
     UsersModule,
-        AuditModule,
+    AuditModule,
         SourcesModule,
+        VerificationModule,
+
   ],
   controllers: [AppController],
   providers: [AppService],
