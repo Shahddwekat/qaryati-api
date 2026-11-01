@@ -144,7 +144,10 @@ describe('VerificationQueueService', () => {
 
   it('unions all eight tables by default and excludes the reviewer own submissions', async () => {
     const { service, queryRaw } = build();
-    await service.list(Object.assign(new QueueQueryDto(), { page: 3, limit: 10 }), reviewer);
+    await service.list(
+      Object.assign(new QueueQueryDto(), { page: 3, limit: 10 }),
+      reviewer,
+    );
 
     const rowsQuery = queryRaw.mock.calls[0][0];
     expect(rowsQuery.sql.match(/UNION ALL/g)).toHaveLength(7);
@@ -190,7 +193,12 @@ describe('VerificationQueueService', () => {
     const result = await service.list(new QueueQueryDto(), reviewer);
 
     expect(() => JSON.stringify(result)).not.toThrow();
-    expect(result.meta).toEqual({ page: 1, limit: 20, total: 45, totalPages: 3 });
+    expect(result.meta).toEqual({
+      page: 1,
+      limit: 20,
+      total: 45,
+      totalPages: 3,
+    });
     expect(result.data[0]).toMatchObject({
       type: 'population-records',
       id: 5,

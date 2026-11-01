@@ -7,9 +7,10 @@ import {
 
 /** Turns the `:entityType` URL segment into a VerifiableEntity, or 404. */
 @Injectable()
-export class ParseVerifiableEntityPipe
-  implements PipeTransform<string, VerifiableEntity>
-{
+export class ParseVerifiableEntityPipe implements PipeTransform<
+  string,
+  VerifiableEntity
+> {
   transform(value: string): VerifiableEntity {
     if (!Object.prototype.hasOwnProperty.call(ENTITY_SLUGS, value)) {
       throw new NotFoundException(

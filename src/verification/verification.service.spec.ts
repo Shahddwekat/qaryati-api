@@ -65,7 +65,12 @@ describe('VerificationService', () => {
     it('reject rejects a CONTRIBUTOR', async () => {
       const { service } = setup();
       await expect(
-        service.reject(VerifiableEntity.POPULATION_RECORD, 10, CONTRIBUTOR, 'x'),
+        service.reject(
+          VerifiableEntity.POPULATION_RECORD,
+          10,
+          CONTRIBUTOR,
+          'x',
+        ),
       ).rejects.toBeInstanceOf(ForbiddenException);
     });
   });
@@ -294,7 +299,9 @@ describe('VerificationService', () => {
     it('clears the old preferred row BEFORE setting the new one', async () => {
       const { service, delegate, audit } = setup();
       delegate.findUnique.mockResolvedValue(verified());
-      delegate.findFirst.mockResolvedValue(verified({ id: 4, isPreferred: true }));
+      delegate.findFirst.mockResolvedValue(
+        verified({ id: 4, isPreferred: true }),
+      );
 
       await service.prefer(VerifiableEntity.POPULATION_RECORD, 10, VERIFIER);
 

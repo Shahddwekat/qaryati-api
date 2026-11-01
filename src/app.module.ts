@@ -1,4 +1,3 @@
-
 import { Module } from '@nestjs/common';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -11,7 +10,6 @@ import { AuditModule } from './audit/audit.module';
 import { SourcesModule } from './sources/sources.module';
 import { VerificationModule } from './verification/verification.module';
 
-
 @Module({
   imports: [
     PrismaModule,
@@ -20,11 +18,10 @@ import { VerificationModule } from './verification/verification.module';
     AuthModule,
     UsersModule,
     AuditModule,
-        SourcesModule,
-        VerificationModule,
-
+    SourcesModule,
+    VerificationModule,
   ],
   controllers: [AppController],
   providers: [AppService],
 })
-export class AppModule { }
+export class AppModule {}

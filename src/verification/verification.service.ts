@@ -181,62 +181,64 @@ export class VerificationService {
     }
 
     try {
-      return await this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
-        const delegate = this.delegateOf(tx, cfg);
-        const row = await this.loadOrThrow(delegate, entity, id);
+      return await this.prisma.$transaction(
+        async (tx: Prisma.TransactionClient) => {
+          const delegate = this.delegateOf(tx, cfg);
+          const row = await this.loadOrThrow(delegate, entity, id);
 
-        if (row[cfg.statusField] !== VerificationStatus.VERIFIED) {
-          throw new ConflictException(
-            'Only VERIFIED facts can be set as preferred',
-          );
-        }
-        if (row.isPreferred === true) {
-          return row; // already preferred: nothing to change, nothing to audit
-        }
+          if (row[cfg.statusField] !== VerificationStatus.VERIFIED) {
+            throw new ConflictException(
+              'Only VERIFIED facts can be set as preferred',
+            );
+          }
+          if (row.isPreferred === true) {
+            return row; // already preferred: nothing to change, nothing to audit
+          }
 
-        const groupWhere = Object.fromEntries(group.map((f) => [f, row[f]]));
-        const previous = await delegate.findFirst({
-          where: { ...groupWhere, isPreferred: true },
-        });
-
-        if (previous) {
-          await delegate.updateMany({
+          const groupWhere = Object.fromEntries(group.map((f) => [f, row[f]]));
+          const previous = await delegate.findFirst({
             where: { ...groupWhere, isPreferred: true },
-            data: { isPreferred: null },
           });
-        }
 
-        const { count } = await delegate.updateMany({
-          where: {
-            id,
-            [cfg.statusField]: VerificationStatus.VERIFIED,
-          },
-          data: { isPreferred: true },
-        });
-        if (count !== 1) {
-          throw new ConflictException(
-            'The fact was changed by someone else, please reload and retry',
-          );
-        }
+          if (previous) {
+            await delegate.updateMany({
+              where: { ...groupWhere, isPreferred: true },
+              data: { isPreferred: null },
+            });
+          }
 
-        const after = await this.loadOrThrow(delegate, entity, id);
-        await this.audit.log(
-          {
-            userId: reviewer.id,
-            action: AuditAction.SET_PREFERRED,
-            entityType: entity,
-            entityId: id,
-            beforeData: {
-              isPreferred: false,
-              previousPreferredId: previous ? (previous.id as number) : null,
+          const { count } = await delegate.updateMany({
+            where: {
+              id,
+              [cfg.statusField]: VerificationStatus.VERIFIED,
             },
-            afterData: { isPreferred: true },
-            ipAddress,
-          },
-          tx,
-        );
-        return after;
-      });
+            data: { isPreferred: true },
+          });
+          if (count !== 1) {
+            throw new ConflictException(
+              'The fact was changed by someone else, please reload and retry',
+            );
+          }
+
+          const after = await this.loadOrThrow(delegate, entity, id);
+          await this.audit.log(
+            {
+              userId: reviewer.id,
+              action: AuditAction.SET_PREFERRED,
+              entityType: entity,
+              entityId: id,
+              beforeData: {
+                isPreferred: false,
+                previousPreferredId: previous ? (previous.id as number) : null,
+              },
+              afterData: { isPreferred: true },
+              ipAddress,
+            },
+            tx,
+          );
+          return after;
+        },
+      );
     } catch (error) {
       // Two verifiers racing for the same group: the unique index rejects the loser.
       if ((error as { code?: string })?.code === 'P2002') {
@@ -252,9 +254,7 @@ export class VerificationService {
 
   private assertReviewer(reviewer: Reviewer): void {
     if (!reviewer || !REVIEWER_ROLES.includes(reviewer.role)) {
-      throw new ForbiddenException(
-        'Only a VERIFIER or ADMIN can review facts',
-      );
+      throw new ForbiddenException('Only a VERIFIER or ADMIN can review facts');
     }
   }
 
