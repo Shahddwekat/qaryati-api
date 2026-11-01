@@ -60,4 +60,3 @@ We use **option 3**. The rules, all enforced in `VerificationService` (not only 
   - the queue SQL names eight tables and must be updated when a fact table is added.
 - Follow-up work:
   - integration tests against MySQL for the one-preferred-per-group index and for the queue;
-  - decide whether `GET` endpoints of other modules should hide `PENDING` facts by default.
