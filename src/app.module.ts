@@ -9,6 +9,7 @@ import { UsersModule } from './users/users.module';
 import { AuditModule } from './audit/audit.module';
 import { SourcesModule } from './sources/sources.module';
 import { VerificationModule } from './verification/verification.module';
+import { PopulationModule } from './population/population.module';
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { VerificationModule } from './verification/verification.module';
     AuditModule,
     SourcesModule,
     VerificationModule,
+    PopulationModule,
   ],
   controllers: [AppController],
   providers: [AppService],
