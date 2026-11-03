@@ -53,10 +53,11 @@ We use **option 3**. The rules, all enforced in `VerificationService` (not only 
   - feature modules get verification without writing controllers for it;
   - adding a new kind of fact means adding one registry entry.
 - Negative / trade-offs accepted:
-  - the service reaches Prisma delegates by name, so a renamed model must be updated in the
-    registry (a unit test and TypeScript's compile check on usage help catch this);
+  - the service reaches Prisma delegates by name, so a renamed model or column must be updated
+    in the registry (a unit test compares the registry with the generated Prisma client, so
+    the build fails if they drift apart);
   - the four-eyes rule means a team with one verifier cannot verify that person's own facts;
     an admin has to review them;
   - the queue SQL names eight tables and must be updated when a fact table is added.
 - Follow-up work:
-  - integration tests against MySQL for the one-preferred-per-group index and for the queue;
+  - replace the queue's local `page`/`limit` with the shared pagination DTO when it exists.
