@@ -10,6 +10,8 @@ import { AuditModule } from './audit/audit.module';
 import { SourcesModule } from './sources/sources.module';
 import { VerificationModule } from './verification/verification.module';
 import { PopulationModule } from './population/population.module';
+import { GeographyModule } from './geography/geography.module';
+import { VillagesModule } from './villages/villages.module';
 
 @Module({
   imports: [
@@ -22,6 +24,8 @@ import { PopulationModule } from './population/population.module';
     SourcesModule,
     VerificationModule,
     PopulationModule,
+    GeographyModule,
+    VillagesModule,
   ],
   controllers: [AppController],
   providers: [AppService],
