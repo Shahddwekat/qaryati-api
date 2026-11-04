@@ -1,6 +1,6 @@
 import 'reflect-metadata';
 import { jest } from '@jest/globals';
-import { NotFoundException } from '@nestjs/common';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { plainToInstance } from 'class-transformer';
 import { validate } from 'class-validator';
 import { Prisma } from '../generated/prisma/client';
@@ -37,8 +37,9 @@ function setup() {
     $transaction: mockFn().mockImplementation((ops: Promise<unknown>[]) =>
       Promise.all(ops),
     ),
+    $queryRaw: mockFn().mockResolvedValue([]),
   };
-  return { service: new VillagesService(prisma as never), village };
+  return { service: new VillagesService(prisma as never), village, prisma };
 }
 
 describe('VillagesService.list', () => {
@@ -86,6 +87,67 @@ describe('VillagesService.list', () => {
       latitude: 32.2764,
       longitude: 35.1958,
     });
+  });
+});
+
+describe('VillagesService.list with q (full-text search)', () => {
+  it('returns villages in relevance order from the SQL, not from findMany', async () => {
+    const { service, village, prisma } = setup();
+    prisma.$queryRaw
+      .mockResolvedValueOnce([
+        { id: BigInt(2), score: 2.5 },
+        { id: BigInt(1), score: 1.1 },
+      ])
+      .mockResolvedValueOnce([{ total: BigInt(2) }]);
+    village.findMany.mockResolvedValue([
+      villageRow({ id: 1, nameEn: 'Sebastia' }),
+      villageRow({ id: 2, nameEn: 'Burqa' }),
+    ]);
+
+    const page = await service.list(query({ q: 'سبس' }));
+
+    expect(page.data.map((v) => v.id)).toEqual([2, 1]);
+    expect(page.meta.total).toBe(2);
+    expect(village.findMany.mock.calls[0][0].where).toEqual({
+      id: { in: [2, 1] },
+    });
+  });
+
+  it('builds a safe boolean-mode query and excludes hidden villages and rejected names', async () => {
+    const { service, prisma } = setup();
+
+    await service.list(query({ q: 'Burq -x', governorateId: 4 }));
+
+    const sql = prisma.$queryRaw.mock.calls[0][0] as Prisma.Sql;
+    expect(sql.sql).toContain('MATCH(vn.name) AGAINST');
+    expect(sql.sql).toContain('v.deleted_at IS NULL');
+    expect(sql.sql).toContain("vn.status <> 'REJECTED'");
+    expect(sql.sql).toContain('v.governorate_id =');
+    expect(sql.values).toContain('+Burq*');
+  });
+
+  it('returns 400 when q has no word of 3 or more letters', async () => {
+    const { service, prisma } = setup();
+
+    await expect(service.list(query({ q: 'ab' }))).rejects.toBeInstanceOf(
+      BadRequestException,
+    );
+    expect(prisma.$queryRaw).not.toHaveBeenCalled();
+  });
+
+  it('skips findMany when nothing matches', async () => {
+    const { service, village, prisma } = setup();
+    prisma.$queryRaw
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([{ total: BigInt(0) }]);
+
+    const page = await service.list(query({ q: 'zzzz' }));
+
+    expect(page).toEqual({
+      data: [],
+      meta: { page: 1, limit: 20, total: 0, totalPages: 0 },
+    });
+    expect(village.findMany).not.toHaveBeenCalled();
   });
 });
 
