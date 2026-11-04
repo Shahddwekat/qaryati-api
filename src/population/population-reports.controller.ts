@@ -1,7 +1,9 @@
 import { Controller, Get, Query } from '@nestjs/common';
 import { PopulationTrendsQueryDto } from './dto/population-trends-query.dto';
 import { PopulationReportsService } from './population-reports.service';
+import { ApiTags } from '@nestjs/swagger';
 
+@ApiTags('population')
 @Controller('reports')
 export class PopulationReportsController {
   constructor(private readonly reports: PopulationReportsService) {}

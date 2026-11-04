@@ -21,6 +21,7 @@ import { ParseVerifiableEntityPipe } from './parse-verifiable-entity.pipe';
 import { VerificationQueueService } from './verification-queue.service';
 import { VerificationService } from './verification.service';
 import { VerifiableEntity } from './verification.types';
+import { ApiTags } from '@nestjs/swagger';
 
 /**
  * Review endpoints that work for EVERY kind of fact, so feature modules do not
@@ -28,6 +29,7 @@ import { VerifiableEntity } from './verification.types';
  *   PATCH /verification/landmarks/7/verify
  *   PATCH /verification/population-records/12/prefer
  */
+@ApiTags('verification')
 @Controller('verification')
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles(UserRole.VERIFIER, UserRole.ADMIN)

@@ -20,7 +20,9 @@ import { CreateSourceDto } from './dto/create-source.dto';
 import { ListSourcesQueryDto } from './dto/list-sources-query.dto';
 import { UpdateSourceDto } from './dto/update-source.dto';
 import { SourcesService } from './sources.service';
+import { ApiTags } from '@nestjs/swagger';
 
+@ApiTags('sources')
 @Controller('sources')
 export class SourcesController {
   constructor(private readonly sourcesService: SourcesService) {}
