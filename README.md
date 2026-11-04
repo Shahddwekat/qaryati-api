@@ -85,5 +85,6 @@ Please wait for the green check before merging.
 - [Contributing guide](CONTRIBUTING.md)
 - [Architecture Decision Records](docs/adr/)
 - [ERD](docs/architecture/erd.md) and [data dictionary](docs/architecture/data-dictionary.md)
+- [Error model](docs/architecture/error-model.md): the error body, status codes and request ids
 - Performance reports: `docs/performance/`
 - API documentation: _API-Dog link_
