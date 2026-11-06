@@ -16,7 +16,9 @@ import { CurrentUser } from '../common/decorators/current-user.decorator';
 import type { CurrentUserData } from '../common/decorators/current-user.decorator';
 import { CreatePopulationDto } from './dto/create-population.dto';
 import { PopulationService } from './population.service';
+import { ApiTags } from '@nestjs/swagger';
 
+@ApiTags('population')
 @Controller('villages')
 export class PopulationController {
   constructor(private readonly populationService: PopulationService) {}

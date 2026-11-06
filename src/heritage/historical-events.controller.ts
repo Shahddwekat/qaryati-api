@@ -8,7 +8,9 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
+import { ApiTags } from '@nestjs/swagger';
 
+@ApiTags('heritage')
 @Controller('historical-events')
 export class HistoricalEventsController {
   constructor(private readonly heritageService: HeritageService) {}

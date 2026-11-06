@@ -18,7 +18,9 @@ import { CurrentUser } from '../common/decorators/current-user.decorator';
 
 import { HeritageService } from './heritage.service';
 import { CreateLandmarkDto } from './dto/create-landmark.dto';
+import { ApiTags } from '@nestjs/swagger';
 
+@ApiTags('heritage')
 @Controller('villages')
 export class HeritageController {
   constructor(private readonly heritageService: HeritageService) {}

@@ -87,4 +87,5 @@ Please wait for the green check before merging.
 - [ERD](docs/architecture/erd.md) and [data dictionary](docs/architecture/data-dictionary.md)
 - [Error model](docs/architecture/error-model.md): the error body, status codes and request ids
 - Performance reports: `docs/performance/`
-- API documentation: _API-Dog link_
+- API documentation (Swagger UI): http://localhost:3000/api/docs when the API is running;
+  OpenAPI JSON at http://localhost:3000/api/docs-json

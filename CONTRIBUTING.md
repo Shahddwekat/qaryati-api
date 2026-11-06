@@ -51,6 +51,28 @@ Bad: `update`, `fixed stuff`, `final version`, `wip`.
 - [ ] Code follows the agreed module boundaries
 - [ ] Unit and/or integration tests added and passing
 - [ ] Request validation and error responses follow the standard error format
-- [ ] API documentation updated (API-Dog)
+- [ ] API documentation updated (Swagger: `@ApiOperation` + `@ApiErrors` on new endpoints)
 - [ ] ADR written if an important design decision was made
 - [ ] No secrets, debug code, or commented-out blocks
+
+## Documenting endpoints (Swagger)
+Run the API and open http://localhost:3000/api/docs. The raw OpenAPI file is at
+http://localhost:3000/api/docs-json (API-Dog can import it).
+
+- Request bodies and query parameters are documented **automatically** from the DTO classes
+  (types, `class-validator` rules, and the `/** comment */` above each property). Name DTO
+  files `*.dto.ts` so the plugin finds them.
+- Each controller has `@ApiTags('<module>')`.
+- On every endpoint add a summary and the possible errors:
+
+```ts
+import { ApiOperation } from '@nestjs/swagger';
+import { ApiErrors } from '../common/swagger/api-errors.decorator';
+
+@Post(':id/landmarks')
+@ApiOperation({ summary: 'Add a landmark (any signed-in role)', description: 'Starts as PENDING.' })
+@ApiErrors(400, 401, 403, 404, 409)
+create(...) {}
+```
+
+See `src/villages/villages.controller.ts` for a complete example.

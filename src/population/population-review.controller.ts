@@ -16,11 +16,13 @@ import type { CurrentUserData } from '../common/decorators/current-user.decorato
 import { RejectFactDto } from '../verification/dto/reject-fact.dto';
 import { VerificationService } from '../verification/verification.service';
 import { VerifiableEntity } from '../verification/verification.types';
+import { ApiTags } from '@nestjs/swagger';
 
 /**
  * Review shortcuts for population records. The rules live in VerificationService
  * (ADR-0007); this controller only gives them population-friendly URLs.
  */
+@ApiTags('population')
 @Controller('population')
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles(UserRole.VERIFIER, UserRole.ADMIN)
