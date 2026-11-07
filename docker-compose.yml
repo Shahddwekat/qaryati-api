@@ -20,10 +20,14 @@ services:
       - qaryati-mysql-data:/var/lib/mysql
       - ./docker/mysql/init:/docker-entrypoint-initdb.d:ro
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${DB_ROOT_PASSWORD}"]
+      # Use TCP (127.0.0.1), not the socket: during its first start MySQL runs a temporary
+      # server without networking to create the database and users. It answers on the
+      # socket, but the other containers can only reach it over TCP after the real start.
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-u", "root", "-p${DB_ROOT_PASSWORD}"]
       interval: 5s
       timeout: 5s
-      retries: 20
+      start_period: 30s
+      retries: 30
 
   # Runs once: applies migrations and loads the development seed (safe to repeat), then exits.
   migrate:
