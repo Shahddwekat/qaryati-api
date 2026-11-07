@@ -20,7 +20,9 @@
     "test:cov": "node --experimental-vm-modules --no-warnings=ExperimentalWarning node_modules/jest/bin/jest.js --coverage",
     "test:debug": "node --experimental-vm-modules --inspect-brk node_modules/jest/bin/jest.js --runInBand",
     "test:e2e": "node --experimental-vm-modules --no-warnings=ExperimentalWarning node_modules/jest/bin/jest.js --config test/jest-e2e.config.cjs --runInBand",
-    "format:check": "prettier --check \"src/**/*.ts\" \"test/**/*.ts\""
+    "format:check": "prettier --check \"src/**/*.ts\" \"test/**/*.ts\"",
+    "perf:seed": "tsx prisma/seed-perf.ts",
+    "perf:villages": "k6 run --summary-export=perf/results/villages-read.json perf/k6/villages-read.js"
   },
   "dependencies": {
     "@nestjs/common": "^12.0.1",
