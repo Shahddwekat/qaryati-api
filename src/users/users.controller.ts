@@ -10,7 +10,6 @@ import {
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
-  ApiBody,
   ApiOperation,
   ApiParam,
   ApiResponse,
@@ -84,23 +83,6 @@ export class UsersController {
     type: Number,
     description: 'Target user ID.',
     example: 4,
-  })
-  @ApiBody({
-    schema: {
-      type: 'object',
-      required: ['role'],
-      properties: {
-        role: {
-          type: 'string',
-          enum: [
-            UserRole.ADMIN,
-            UserRole.VERIFIER,
-            UserRole.CONTRIBUTOR,
-          ],
-          example: UserRole.VERIFIER,
-        },
-      },
-    },
   })
   @ApiResponse({
     status: 200,

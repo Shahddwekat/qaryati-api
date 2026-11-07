@@ -3,7 +3,6 @@ import { Body, Controller, Post } from '@nestjs/common';
 import {
   ApiTags,
   ApiOperation,
-  ApiBody,
   ApiResponse,
 } from '@nestjs/swagger';
 
@@ -22,28 +21,6 @@ export class AuthController {
     summary: 'Register a new user',
     description:
       'Creates a new user account with the CONTRIBUTOR role.',
-  })
-  @ApiBody({
-    schema: {
-      type: 'object',
-      required: ['email', 'password', 'fullName'],
-      properties: {
-        email: {
-          type: 'string',
-          format: 'email',
-          example: 'user@example.com',
-        },
-        password: {
-          type: 'string',
-          format: 'password',
-          example: 'ExamplePassword123!',
-        },
-        fullName: {
-          type: 'string',
-          example: 'Test User',
-        },
-      },
-    },
   })
   @ApiResponse({
     status: 201,
@@ -71,24 +48,6 @@ export class AuthController {
     description:
       'Authenticates a user and returns access and refresh tokens.',
   })
-  @ApiBody({
-    schema: {
-      type: 'object',
-      required: ['email', 'password'],
-      properties: {
-        email: {
-          type: 'string',
-          format: 'email',
-          example: 'user@example.com',
-        },
-        password: {
-          type: 'string',
-          format: 'password',
-          example: 'ExamplePassword123!',
-        },
-      },
-    },
-  })
   @ApiResponse({
     status: 201,
     description: 'Login successful. Tokens are returned.',
@@ -114,18 +73,6 @@ export class AuthController {
     description:
       'Validates the refresh token, revokes it, and issues new tokens.',
   })
-  @ApiBody({
-    schema: {
-      type: 'object',
-      required: ['refreshToken'],
-      properties: {
-        refreshToken: {
-          type: 'string',
-          description: 'The refresh token issued at login.',
-        },
-      },
-    },
-  })
   @ApiResponse({
     status: 201,
     description: 'New access and refresh tokens issued.',
@@ -141,20 +88,7 @@ export class AuthController {
   @Post('logout')
   @ApiOperation({
     summary: 'Logout',
-    description:
-      'Revokes the provided refresh token.',
-  })
-  @ApiBody({
-    schema: {
-      type: 'object',
-      required: ['refreshToken'],
-      properties: {
-        refreshToken: {
-          type: 'string',
-          description: 'The refresh token to revoke.',
-        },
-      },
-    },
+    description: 'Revokes the provided refresh token.',
   })
   @ApiResponse({
     status: 201,
