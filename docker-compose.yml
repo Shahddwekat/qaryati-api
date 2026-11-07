@@ -1,3 +1,8 @@
+# Local development:   docker compose up -d                  -> MySQL only (run the API with npm run start:dev)
+# Everything in Docker: docker compose --profile app up --build -> MySQL + migrations/seed + API
+#
+# Values come from .env (copy .env.example to .env first).
+
 services:
   mysql:
     image: mysql:8.4
@@ -15,10 +20,50 @@ services:
       - qaryati-mysql-data:/var/lib/mysql
       - ./docker/mysql/init:/docker-entrypoint-initdb.d:ro
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${DB_ROOT_PASSWORD}"]
+      # Use TCP (127.0.0.1), not the socket: during its first start MySQL runs a temporary
+      # server without networking to create the database and users. It answers on the
+      # socket, but the other containers can only reach it over TCP after the real start.
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-u", "root", "-p${DB_ROOT_PASSWORD}"]
       interval: 5s
       timeout: 5s
-      retries: 20
+      start_period: 30s
+      retries: 30
+
+  # Runs once: applies migrations and loads the development seed (safe to repeat), then exits.
+  migrate:
+    profiles: [app]
+    build:
+      context: .
+      target: build
+    image: qaryati-api-build
+    env_file: .env
+    environment: &docker-db
+      # Inside Docker the database is the "mysql" service on port 3306.
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DATABASE_URL: mysql://${DB_USER}:${DB_PASSWORD}@mysql:3306/${DB_NAME}
+    command: sh -c "npx prisma migrate deploy && npx prisma db seed"
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+  api:
+    profiles: [app]
+    build:
+      context: .
+      target: runtime
+    image: qaryati-api
+    container_name: qaryati-api
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      <<: *docker-db
+      PORT: 3000
+    ports:
+      - "${API_PORT:-3000}:3000"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
 
 volumes:
   qaryati-mysql-data:

@@ -68,6 +68,26 @@ Useful commands:
 | `npx prisma migrate dev --name <change>` | after editing `schema.prisma`: create and apply a new migration |
 | `npx prisma db seed` | add the development data again |
 
+## Run everything in Docker
+No Node.js needed, only **Docker Desktop**. From a fresh clone:
+```
+copy .env.example .env        # Windows   (cp on macOS / Linux)
+docker compose --profile app up --build
+```
+This starts three containers:
+| Service | What it does |
+|---|---|
+| `mysql` | the database |
+| `migrate` | applies the migrations and loads the development seed, then exits |
+| `api` | the API on http://localhost:3000 (docs at http://localhost:3000/api/docs) |
+
+Stop with `Ctrl + C`, or `docker compose --profile app down` (add `-v` to also delete the data).
+After pulling new code, run the same `up --build` command again.
+
+For day-to-day development keep using the Quick start above: `docker compose up -d` starts
+**only MySQL**, and you run the API with `npm run start:dev`. Don't run both at the same time,
+because both use port 3000 (or set `API_PORT=3001` in `.env` for the Docker API).
+
 ## Tests
 | Command | What it runs |
 |---|---|
