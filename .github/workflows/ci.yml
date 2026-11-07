@@ -59,3 +59,32 @@ jobs:
 
       - name: End-to-end tests
         run: npm run test:e2e
+
+  # Builds the Docker images and starts the whole stack, like a new teammate would.
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Start MySQL, migrations + seed and the API
+        run: |
+          cp .env.example .env
+          docker compose --profile app up -d --build
+
+      - name: Wait for the API and check it
+        run: |
+          for i in $(seq 1 60); do
+            curl -fs http://localhost:3000/health && break
+            sleep 2
+          done
+          curl -fs http://localhost:3000/health
+          curl -fs "http://localhost:3000/api/v1/villages?limit=1"
+          curl -fs -o /dev/null http://localhost:3000/api/docs
+
+      - name: Show logs if something failed
+        if: failure()
+        run: docker compose --profile app logs
+
+      - name: Stop
+        if: always()
+        run: docker compose --profile app down -v

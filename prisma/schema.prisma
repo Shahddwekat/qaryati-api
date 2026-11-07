@@ -12,6 +12,9 @@ generator client {
   provider     = "prisma-client"
   output       = "../src/generated/prisma"
   moduleFormat = "cjs"
+  // Always import generated files as ".js" (works with our CommonJS build everywhere,
+  // also when tsconfig.json is not available, e.g. inside Docker)
+  importFileExtension = "js"
 }
 
 datasource db {
