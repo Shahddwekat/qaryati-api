@@ -1,15 +1,22 @@
+// Performance test for the login endpoint.
+//
+// Login is rate limited (5 per minute per IP by default) and every k6 user
+// comes from the same IP, so start the API with a high limit for this test:
+//
+//   Windows:  set LOGIN_RATE_LIMIT=100000 && npm run start:prod
+//   macOS/Linux:  LOGIN_RATE_LIMIT=100000 npm run start:prod
+//
+//   k6 run -e QUICK=1 perf/k6/auth.js     (20-second check)
+//   k6 run perf/k6/auth.js                (real run, about 2 minutes)
+//
+// Login is expected to be slower than reads: passwords are checked with
+// bcrypt (cost 12), which is slow on purpose to make guessing expensive.
 
 import http from 'k6/http';
 import { check, sleep } from 'k6';
-import {
-  API,
-  THRESHOLDS,
-  perEndpoint,
-  stages,
-} from './lib/config.js';
+import { API, THRESHOLDS, perEndpoint, stages } from './lib/config.js';
+import { ACCOUNTS, DEFAULT_PASSWORD } from './lib/auth.js';
 
-// Performance test for the login endpoint.
-// Run only against a local test database.
 export const options = {
   scenarios: {
     main: {
@@ -23,32 +30,25 @@ export const options = {
   },
 };
 
+const EMAIL = __ENV.TEST_EMAIL || ACCOUNTS.contributor;
+
 export default function () {
-  // Use a dedicated test account, not a real user.
-  const email = __ENV.TEST_EMAIL;
-  const password = __ENV.TEST_PASSWORD;
-
-  if (!email || !password) {
-    throw new Error('TEST_EMAIL and TEST_PASSWORD are required');
-  }
-
   const response = http.post(
     `${API}/auth/login`,
-    JSON.stringify({ email, password }),
+    JSON.stringify({ email: EMAIL, password: DEFAULT_PASSWORD }),
     {
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      tags: {
-        name: 'auth_login',
-      },
-    }
+      headers: { 'Content-Type': 'application/json' },
+      tags: { name: 'auth_login' },
+    },
   );
 
   check(response, {
-    'login: status 200': (r) => r.status === 200,
+    'login: status 201': (r) => r.status === 201,
     'login: access token returned': (r) =>
-      r.status === 200 && !!r.json('accessToken'),
+      r.status === 201 && !!r.json('accessToken'),
+    'login: not rate limited (start the API with LOGIN_RATE_LIMIT=100000)': (
+      r,
+    ) => r.status !== 429,
   });
 
   sleep(0.5 + Math.random());

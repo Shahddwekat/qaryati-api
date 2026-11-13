@@ -59,6 +59,9 @@ Start a new scenario from [`k6/_template.js`](k6/_template.js).
 | `{ name:search }` lines | the same numbers for one endpoint |
 
 ## Notes
-- Requests that change data (POST/PATCH) need a token; once Batool's login rate limiting
-  is merged, log in **once** in `setup()` and pass the token to the virtual users, not in every iteration.
+- Requests that change data (POST/PATCH) need a token: use `login()` from `k6/lib/auth.js`
+  **once** in `setup()` and pass the token to the virtual users, not in every iteration.
+  Login is rate limited (5 per minute per IP by default).
+- `auth.js` logs in on every iteration on purpose, so start the API with
+  `LOGIN_RATE_LIMIT=100000` for that test (see the comment at the top of the file).
 - `perf/results/` is ignored by git; copy the numbers you need into the report.

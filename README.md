@@ -106,6 +106,7 @@ Please wait for the green check before merging.
 - [Architecture Decision Records](docs/adr/)
 - [ERD](docs/architecture/erd.md) and [data dictionary](docs/architecture/data-dictionary.md)
 - [Error model](docs/architecture/error-model.md): the error body, status codes and request ids
+- [Authentication, authorization and audit](docs/architecture/auth-authorization-audit.md): tokens, roles, login rate limiting
 - Performance tests (k6): [perf/README.md](perf/README.md); reports in `docs/performance/`
 - API documentation (Swagger UI): http://localhost:3000/api/docs when the API is running;
   OpenAPI JSON at http://localhost:3000/api/docs-json
