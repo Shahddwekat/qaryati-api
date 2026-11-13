@@ -29,40 +29,44 @@ export class JwtAuthGuard implements CanActivate {
 
     const token = authorization.slice(7);
 
+    let payload: {
+      sub: number;
+      email: string;
+      role: string;
+    };
+
     try {
-      const payload = await this.jwtService.verifyAsync<{
-        sub: number;
-        email: string;
-        role: string;
-      }>(token);
-
-      if (!Number.isInteger(payload.sub)) {
-        throw new UnauthorizedException('Invalid access token');
-      }
-
-      const user = await this.prisma.user.findUnique({
-        where: { id: payload.sub },
-        select: {
-          id: true,
-          email: true,
-          role: true,
-          isActive: true,
-        },
-      });
-
-      if (!user || !user.isActive) {
-        throw new UnauthorizedException('Account unavailable');
-      }
-
-      request.user = {
-        id: user.id,
-        email: user.email,
-        role: user.role,
-      };
-
-      return true;
+      payload = await this.jwtService.verifyAsync(token);
     } catch {
-      throw new UnauthorizedException('Invalid or expired access token');
+      throw new UnauthorizedException(
+        'Invalid or expired access token',
+      );
     }
+
+    if (!Number.isInteger(payload.sub)) {
+      throw new UnauthorizedException('Invalid access token');
+    }
+
+    const user = await this.prisma.user.findUnique({
+      where: { id: payload.sub },
+      select: {
+        id: true,
+        email: true,
+        role: true,
+        isActive: true,
+      },
+    });
+
+    if (!user || !user.isActive) {
+      throw new UnauthorizedException('Account unavailable');
+    }
+
+    request.user = {
+      id: user.id,
+      email: user.email,
+      role: user.role,
+    };
+
+    return true;
   }
 }
