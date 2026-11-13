@@ -4,6 +4,7 @@ import 'dotenv/config';
 import { Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
 import { PrismaModule } from '../prisma/prisma.module';
+import { AuditService } from '../audit/audit.service';
 import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
 
@@ -39,7 +40,7 @@ if (
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService],
+  providers: [AuthService, AuditService],
   exports: [AuthService, JwtModule],
 })
 export class AuthModule {}

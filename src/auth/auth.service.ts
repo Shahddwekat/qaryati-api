@@ -8,7 +8,11 @@ import {
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../prisma/prisma.service';
-import { Prisma } from '../generated/prisma/client';
+import { AuditService } from '../audit/audit.service';
+import {
+  Prisma,
+  AuditAction,
+} from '../generated/prisma/client';
 import * as bcrypt from 'bcryptjs';
 import { createHash, randomBytes } from 'node:crypto';
 
@@ -30,6 +34,7 @@ export class AuthService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwtService: JwtService,
+    private readonly auditService: AuditService,
   ) {}
 
   private hashRefreshToken(token: string): string {
@@ -76,20 +81,39 @@ export class AuthService {
     const passwordHash = await bcrypt.hash(password, 12);
 
     try {
-      return await this.prisma.user.create({
-        data: {
-          email: normalizedEmail,
-          passwordHash,
-          fullName: fullName.trim(),
-          role: 'CONTRIBUTOR',
-        },
-        select: {
-          id: true,
-          email: true,
-          fullName: true,
-          role: true,
-          createdAt: true,
-        },
+      return await this.prisma.$transaction(async (tx) => {
+        const user = await tx.user.create({
+          data: {
+            email: normalizedEmail,
+            passwordHash,
+            fullName: fullName.trim(),
+            role: 'CONTRIBUTOR',
+          },
+          select: {
+            id: true,
+            email: true,
+            fullName: true,
+            role: true,
+            createdAt: true,
+          },
+        });
+
+        await this.auditService.log(
+          {
+            userId: user.id,
+            action: AuditAction.CREATE,
+            entityType: 'User',
+            entityId: user.id,
+            afterData: {
+              email: user.email,
+              fullName: user.fullName,
+              role: user.role,
+            },
+          },
+          tx,
+        );
+
+        return user;
       });
     } catch (error) {
       if (
