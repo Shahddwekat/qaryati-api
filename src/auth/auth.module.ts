@@ -3,6 +3,7 @@ import 'dotenv/config';
 
 import { Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
+import { ThrottlerModule } from '@nestjs/throttler';
 import { PrismaModule } from '../prisma/prisma.module';
 import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
@@ -31,6 +32,12 @@ if (
 @Module({
   imports: [
     PrismaModule,
+    ThrottlerModule.forRoot([
+      {
+        ttl: 60000,
+        limit: 5,
+      },
+    ]),
     JwtModule.register({
       secret: jwtSecret,
       signOptions: {
