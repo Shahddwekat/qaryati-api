@@ -3,6 +3,7 @@ import { jest } from '@jest/globals';
 import {
   ExecutionContext,
   ForbiddenException,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { UserRole } from '../../generated/prisma/client';
@@ -93,14 +94,14 @@ describe('RolesGuard', () => {
     ).toThrow(ForbiddenException);
   });
 
-  it('should deny access when there is no authenticated user', () => {
+  it('should answer 401 when there is no authenticated user', () => {
     reflector.getAllAndOverride.mockReturnValue([
       UserRole.ADMIN,
     ]);
 
     expect(() =>
       guard.canActivate(createContext()),
-    ).toThrow(ForbiddenException);
+    ).toThrow(UnauthorizedException);
   });
 
   it('should allow either role when multiple roles are permitted', () => {

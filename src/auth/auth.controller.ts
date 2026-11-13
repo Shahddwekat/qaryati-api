@@ -1,5 +1,5 @@
 
-import { Body, Controller, Post } from '@nestjs/common';
+import { Body, Controller, Post, UseGuards } from '@nestjs/common';
 import {
   ApiTags,
   ApiOperation,
@@ -7,6 +7,7 @@ import {
 } from '@nestjs/swagger';
 
 import { AuthService } from './auth.service';
+import { LoginRateLimitGuard } from './guards/login-rate-limit.guard';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
@@ -43,6 +44,7 @@ export class AuthController {
   }
 
   @Post('login')
+  @UseGuards(LoginRateLimitGuard)
   @ApiOperation({
     summary: 'Login',
     description:
@@ -59,6 +61,11 @@ export class AuthController {
   @ApiResponse({
     status: 401,
     description: 'Invalid credentials or inactive account.',
+  })
+  @ApiResponse({
+    status: 429,
+    description:
+      'Too many login attempts from this IP (LOGIN_RATE_LIMIT per LOGIN_RATE_TTL_MS). See the Retry-After header.',
   })
   async login(@Body() dto: LoginDto) {
     return this.authService.login(

@@ -26,7 +26,9 @@ The system:
 2. Checks whether the email is already registered.
 3. Hashes the password with bcrypt.
 4. Creates an account with the `CONTRIBUTOR` role.
-5. Returns user information without exposing the password hash.
+5. Writes a `CREATE` audit row for the new user in the same transaction
+   (if the audit row cannot be written, the account is not created).
+6. Returns user information without exposing the password hash.
 
 Duplicate email registration returns HTTP 409.
 
@@ -43,6 +45,20 @@ On successful authentication, it:
 - Updates the user's last login timestamp.
 
 Invalid credentials or a disabled account return HTTP 401.
+
+### Login Rate Limiting
+
+Login attempts are limited per client IP by `LoginRateLimitGuard`:
+at most `LOGIN_RATE_LIMIT` attempts (default 5) within `LOGIN_RATE_TTL_MS`
+milliseconds (default 60000). The next attempt returns HTTP 429 with a
+`Retry-After` header (seconds until the window ends).
+
+- Every attempt counts, successful or not, so guessing passwords is slowed down
+  without revealing whether a guess was right.
+- Counters are kept in memory, which is enough for one API instance. Several
+  instances would need a shared store (for example Redis).
+- For load tests (k6), start the API with a high limit, for example
+  `LOGIN_RATE_LIMIT=100000`.
 
 ### Refresh Token Rotation
 
@@ -96,9 +112,16 @@ Authorization is implemented using:
 - `@Roles()`: Declares allowed roles on protected endpoints.
 - `@CurrentUser()`: Provides authenticated user information to controllers.
 
-Unauthenticated requests receive HTTP 401.
+Unauthenticated requests receive HTTP 401:
 
-Authenticated users without the required role receive HTTP 403.
+| Situation | Message |
+|---|---|
+| No `Authorization: Bearer` header | 401 `Missing access token` |
+| Invalid or expired access token | 401 `Invalid or expired access token` |
+| Token valid, but the account was disabled or deleted | 401 `Account unavailable` |
+
+Authenticated users without the required role receive HTTP 403
+(`Your role does not have permission to access this resource`).
 
 ## 5. User Management
 
