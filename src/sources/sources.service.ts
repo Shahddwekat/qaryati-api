@@ -8,6 +8,7 @@ import {
 import { AuditAction, Prisma, UserRole } from '../generated/prisma/client';
 import { AuditService } from '../audit/audit.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { toPage, toSkipTake } from '../common/dto/pagination-query.dto';
 import { CurrentUserData } from '../common/decorators/current-user.decorator';
 import { CreateSourceDto } from './dto/create-source.dto';
 import { ListSourcesQueryDto } from './dto/list-sources-query.dto';
@@ -40,21 +41,12 @@ export class SourcesService {
       this.prisma.source.findMany({
         where,
         orderBy: [{ [query.sortBy]: query.order }, { id: 'asc' }],
-        skip: (query.page - 1) * query.limit,
-        take: query.limit,
+        ...toSkipTake(query),
       }),
       this.prisma.source.count({ where }),
     ]);
 
-    return {
-      data: items,
-      meta: {
-        page: query.page,
-        limit: query.limit,
-        total,
-        totalPages: Math.ceil(total / query.limit),
-      },
-    };
+    return toPage(items, total, query);
   }
 
   async findOne(id: number): Promise<SourceRow> {

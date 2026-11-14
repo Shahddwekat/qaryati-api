@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma } from '../generated/prisma/client';
+import { toPage, toSkipTake } from '../common/dto/pagination-query.dto';
 import { PrismaService } from '../prisma/prisma.service';
 import { QueueQueryDto } from './dto/queue-query.dto';
 import {
@@ -53,7 +54,7 @@ export class VerificationQueueService {
       entities.map((e) => QUEUE_SELECTS[e]),
       ' UNION ALL ',
     );
-    const offset = (query.page - 1) * query.limit;
+    const { skip, take } = toSkipTake(query);
 
     const [rows, counts] = await Promise.all([
       this.prisma.$queryRaw<QueueRow[]>(
@@ -61,7 +62,7 @@ export class VerificationQueueService {
           FROM (${union}) q
           WHERE q.submitted_by <> ${reviewer.id}
           ORDER BY q.created_at ASC, q.entity_type ASC, q.id ASC
-          LIMIT ${query.limit} OFFSET ${offset}`,
+          LIMIT ${take} OFFSET ${skip}`,
       ),
       this.prisma.$queryRaw<{ total: number | bigint }[]>(
         Prisma.sql`SELECT COUNT(*) AS total
@@ -73,8 +74,8 @@ export class VerificationQueueService {
     // COUNT(*) comes back as BigInt, which JSON cannot serialize.
     const total = Number(counts[0]?.total ?? 0);
 
-    return {
-      data: rows.map((r) => ({
+    return toPage(
+      rows.map((r) => ({
         entityType: r.entity_type,
         type: SLUG_BY_ENTITY[r.entity_type], // URL segment for /verification/:type/:id/verify
         id: Number(r.id),
@@ -83,12 +84,8 @@ export class VerificationQueueService {
         submittedBy: Number(r.submitted_by),
         createdAt: r.created_at,
       })),
-      meta: {
-        page: query.page,
-        limit: query.limit,
-        total,
-        totalPages: Math.ceil(total / query.limit),
-      },
-    };
+      total,
+      query,
+    );
   }
 }
