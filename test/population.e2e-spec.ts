@@ -24,6 +24,8 @@ const YEAR = 1650; // two sources disagree, one gets preferred
 const WARN_YEAR = 1660; // implausible jump -> warning
 const REJECT_YEAR = 1670; // rejected by a verifier
 const OWN_YEAR = 1680; // verifier submits it, so someone else must verify
+const FALLBACK_YEAR = 1690; // verified figures, none preferred -> fallback
+const PENDING_YEAR = 1695; // only a pending figure -> no main figure
 
 interface Session {
   token: string;
@@ -66,7 +68,16 @@ describe('Population (e2e)', () => {
     await prisma.populationRecord.deleteMany({
       where: {
         villageId: VILLAGE,
-        year: { in: [YEAR, WARN_YEAR, REJECT_YEAR, OWN_YEAR] },
+        year: {
+          in: [
+            YEAR,
+            WARN_YEAR,
+            REJECT_YEAR,
+            OWN_YEAR,
+            FALLBACK_YEAR,
+            PENDING_YEAR,
+          ],
+        },
       },
     });
   }
@@ -314,6 +325,7 @@ describe('Population (e2e)', () => {
         .expect(200);
       const entry = list.body.find((y: { year: number }) => y.year === YEAR);
       expect(entry.preferred.id).toBe(r2);
+      expect(entry.preferred.isFallback).toBe(false);
       expect(entry.alternatives.map((a: { id: number }) => a.id)).toEqual([r1]);
       expect(entry.alternatives[0].isPreferred).toBe(false);
     });
@@ -330,6 +342,84 @@ describe('Population (e2e)', () => {
         .patch('/api/v1/verification/users/1/verify')
         .set(bearer(verifier))
         .expect(404);
+    });
+  });
+
+  describe('main figure of a year', () => {
+    const yearEntry = async (year: number) => {
+      const res = await api()
+        .get(`/api/v1/villages/${VILLAGE}/population`)
+        .expect(200);
+      return res.body.find((y: { year: number }) => y.year === year);
+    };
+
+    it('has no main figure while a year only has pending figures', async () => {
+      const created = await postPopulation(contributor, {
+        year: PENDING_YEAR,
+        population: 700,
+        sourceId: sourceA,
+      }).expect(201);
+
+      const entry = await yearEntry(PENDING_YEAR);
+      expect(entry.preferred).toBeNull();
+      expect(entry.alternatives.map((a: { id: number }) => a.id)).toEqual([
+        created.body.record.id,
+      ]);
+    });
+
+    it('falls back to the most recent verified figure when none is preferred', async () => {
+      const a = (
+        await postPopulation(contributor, {
+          year: FALLBACK_YEAR,
+          population: 800,
+          sourceId: sourceA,
+        }).expect(201)
+      ).body.record.id;
+      const b = (
+        await postPopulation(contributor, {
+          year: FALLBACK_YEAR,
+          population: 850,
+          sourceId: sourceB,
+        }).expect(201)
+      ).body.record.id;
+
+      // both pending: no main figure yet
+      expect((await yearEntry(FALLBACK_YEAR)).preferred).toBeNull();
+
+      // one verified figure: it becomes the fallback
+      await api()
+        .patch(`/api/v1/population/${a}/verify`)
+        .set(bearer(verifier))
+        .expect(200);
+      let entry = await yearEntry(FALLBACK_YEAR);
+      expect(entry.preferred).toMatchObject({
+        id: a,
+        isPreferred: false,
+        isFallback: true,
+      });
+      expect(entry.alternatives.map((x: { id: number }) => x.id)).toEqual([b]);
+
+      // two verified figures: the most recent one is the fallback
+      await api()
+        .patch(`/api/v1/population/${b}/verify`)
+        .set(bearer(verifier))
+        .expect(200);
+      entry = await yearEntry(FALLBACK_YEAR);
+      expect(entry.preferred).toMatchObject({ id: b, isFallback: true });
+      expect(entry.alternatives.map((x: { id: number }) => x.id)).toEqual([a]);
+
+      // a verifier chooses the other one: it is now a real preferred figure
+      await api()
+        .patch(`/api/v1/population/${a}/prefer`)
+        .set(bearer(verifier))
+        .expect(200);
+      entry = await yearEntry(FALLBACK_YEAR);
+      expect(entry.preferred).toMatchObject({
+        id: a,
+        isPreferred: true,
+        isFallback: false,
+      });
+      expect(entry.alternatives.map((x: { id: number }) => x.id)).toEqual([b]);
     });
   });
 
@@ -455,6 +545,13 @@ describe('Population (e2e)', () => {
       });
       // pending and rejected figures are not counted
       expect(byYear[WARN_YEAR]).toBeUndefined();
+      // the report uses the same rule as the list: here the preferred figure (800)
+      expect(byYear[FALLBACK_YEAR]).toEqual({
+        year: FALLBACK_YEAR,
+        totalPopulation: 800,
+        villagesCount: 1,
+      });
+      expect(byYear[PENDING_YEAR]).toBeUndefined();
       expect(byYear[REJECT_YEAR]).toBeUndefined();
     });
 

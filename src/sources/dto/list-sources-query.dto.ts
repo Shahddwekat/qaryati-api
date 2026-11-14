@@ -1,38 +1,12 @@
-import { Type } from 'class-transformer';
-import {
-  IsEnum,
-  IsIn,
-  IsInt,
-  IsOptional,
-  IsString,
-  Max,
-  MaxLength,
-  Min,
-} from 'class-validator';
+import { IsEnum, IsIn, IsOptional, IsString, MaxLength } from 'class-validator';
+import { PaginationQueryDto } from '../../common/dto/pagination-query.dto';
 import { SourceType } from '../../generated/prisma/client';
 
 export const SOURCE_SORT_FIELDS = ['title', 'year', 'createdAt'] as const;
 export type SourceSortField = (typeof SOURCE_SORT_FIELDS)[number];
 
-/**
- * Query string of GET /sources.
- * NOTE: page/limit live here until the shared PaginationQueryDto (Shahd) lands;
- * then this class should extend it.
- */
-export class ListSourcesQueryDto {
-  @IsOptional()
-  @Type(() => Number)
-  @IsInt()
-  @Min(1)
-  page: number = 1;
-
-  @IsOptional()
-  @Type(() => Number)
-  @IsInt()
-  @Min(1)
-  @Max(100)
-  limit: number = 20;
-
+/** Query string of GET /sources (`page` and `limit` come from PaginationQueryDto). */
+export class ListSourcesQueryDto extends PaginationQueryDto {
   @IsOptional()
   @IsEnum(SourceType)
   type?: SourceType;

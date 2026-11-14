@@ -119,3 +119,32 @@ export function detectImplausibleChange(
   if (after) check(candidate, after, after);
   return warnings;
 }
+
+export interface RankedRecord {
+  id: number;
+  status: string;
+  isPreferred: boolean | null;
+}
+
+/**
+ * The main figure of ONE year, shown first in the population history:
+ *  1. the preferred record, if a verifier marked one;
+ *  2. otherwise the most recent (highest id) VERIFIED record, flagged as a fallback;
+ *  3. if the year only has PENDING records, there is no main figure (null).
+ * The trends report (population-reports.service.ts) picks its number with the same rule.
+ */
+export function pickMainRecord<T extends RankedRecord>(
+  records: T[],
+): { main: T | null; isFallback: boolean } {
+  const preferred = records.find((r) => r.isPreferred === true);
+  if (preferred) {
+    return { main: preferred, isFallback: false };
+  }
+
+  const verified = records.filter((r) => r.status === 'VERIFIED');
+  if (verified.length === 0) {
+    return { main: null, isFallback: false };
+  }
+  const latest = verified.reduce((a, b) => (b.id > a.id ? b : a));
+  return { main: latest, isFallback: true };
+}

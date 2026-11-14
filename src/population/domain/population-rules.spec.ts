@@ -1,6 +1,7 @@
 import {
   MAX_POPULATION_PER_VILLAGE,
   detectImplausibleChange,
+  pickMainRecord,
   toYearlyFigures,
   validatePopulationInput,
 } from './population-rules';
@@ -177,5 +178,50 @@ describe('detectImplausibleChange', () => {
     expect(
       detectImplausibleChange({ year: 1997, population: 999 }, []),
     ).toEqual([]);
+  });
+});
+
+describe('pickMainRecord', () => {
+  const r = (
+    id: number,
+    status: string,
+    isPreferred: boolean | null = null,
+  ) => ({
+    id,
+    status,
+    isPreferred,
+  });
+
+  it('uses the preferred record, even when a newer verified record exists', () => {
+    const result = pickMainRecord([
+      r(2, 'VERIFIED', true),
+      r(7, 'VERIFIED'),
+      r(9, 'PENDING'),
+    ]);
+    expect(result.main?.id).toBe(2);
+    expect(result.isFallback).toBe(false);
+  });
+
+  it('falls back to the most recent VERIFIED record when none is preferred', () => {
+    const result = pickMainRecord([r(1, 'VERIFIED'), r(4, 'VERIFIED')]);
+    expect(result.main?.id).toBe(4);
+    expect(result.isFallback).toBe(true);
+  });
+
+  it('ignores PENDING records when choosing the fallback', () => {
+    const result = pickMainRecord([r(3, 'VERIFIED'), r(8, 'PENDING')]);
+    expect(result.main?.id).toBe(3);
+    expect(result.isFallback).toBe(true);
+  });
+
+  it('has no main record when the year only has PENDING records', () => {
+    expect(pickMainRecord([r(1, 'PENDING'), r(2, 'PENDING')])).toEqual({
+      main: null,
+      isFallback: false,
+    });
+  });
+
+  it('has no main record for an empty year', () => {
+    expect(pickMainRecord([])).toEqual({ main: null, isFallback: false });
   });
 });

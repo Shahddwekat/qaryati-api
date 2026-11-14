@@ -59,5 +59,3 @@ We use **option 3**. The rules, all enforced in `VerificationService` (not only 
   - the four-eyes rule means a team with one verifier cannot verify that person's own facts;
     an admin has to review them;
   - the queue SQL names eight tables and must be updated when a fact table is added.
-- Follow-up work:
-  - replace the queue's local `page`/`limit` with the shared pagination DTO when it exists.

@@ -14,6 +14,7 @@ import type { CurrentUserData } from '../common/decorators/current-user.decorato
 import { PrismaService } from '../prisma/prisma.service';
 import {
   detectImplausibleChange,
+  pickMainRecord,
   toYearlyFigures,
   validatePopulationInput,
 } from './domain/population-rules';
@@ -34,9 +35,11 @@ export class PopulationService {
   ) {}
 
   /**
-   * Population history of a village: one entry per year. In each year the
-   * preferred figure comes first and the other (not rejected) figures are the
-   * alternatives, so conflicting sources stay visible (ADR-0005).
+   * Population history of a village: one entry per year. In each year the main
+   * figure (`preferred`) comes first and the other (not rejected) figures are the
+   * alternatives, so conflicting sources stay visible (ADR-0005). The main figure
+   * is the preferred record; if none is preferred, the most recent VERIFIED one
+   * with `isFallback: true`; if the year only has PENDING figures, it is null.
    */
   async listByVillage(villageId: number) {
     await this.ensureVillageExists(villageId);
@@ -56,13 +59,13 @@ export class PopulationService {
       r.status === VerificationStatus.VERIFIED ? 0 : 1;
 
     return [...byYear.entries()].map(([year, group]) => {
-      const preferred = group.find((r) => r.isPreferred === true) ?? null;
+      const { main, isFallback } = pickMainRecord(group);
       const alternatives = group
-        .filter((r) => r !== preferred)
+        .filter((r) => r !== main)
         .sort((a, b) => statusOrder(a) - statusOrder(b) || a.id - b.id);
       return {
         year,
-        preferred: preferred && this.toView(preferred),
+        preferred: main && this.toView(main, isFallback),
         alternatives: alternatives.map((r) => this.toView(r)),
       };
     });
@@ -146,7 +149,7 @@ export class PopulationService {
 
   // ───────────────────────── helpers ─────────────────────────
 
-  private toView(r: PopulationWithSource) {
+  private toView(r: PopulationWithSource, isFallback = false) {
     return {
       id: r.id,
       population: r.population,
@@ -154,6 +157,7 @@ export class PopulationService {
       notes: r.notes,
       status: r.status,
       isPreferred: r.isPreferred === true,
+      isFallback,
       source: r.source,
       verifiedAt: r.verifiedAt,
       createdAt: r.createdAt,

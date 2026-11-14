@@ -92,18 +92,60 @@ describe('PopulationService.listByVillage', () => {
     expect(y1997.alternatives[0].isPreferred).toBe(false);
   });
 
-  it('gives preferred = null when a year has no preferred figure yet', async () => {
-    const { service, populationRecord } = setup();
-    populationRecord.findMany.mockResolvedValue([rec({ id: 1 })]);
-    const [year] = await service.listByVillage(5);
-    expect(year.preferred).toBeNull();
-    expect(year.alternatives).toHaveLength(1);
+  describe('main figure of a year', () => {
+    it('uses the preferred figure when there is one (not a fallback)', async () => {
+      const { service, populationRecord } = setup();
+      populationRecord.findMany.mockResolvedValue([
+        rec({ id: 3, population: 1000, isPreferred: true }),
+        rec({ id: 8, population: 1100 }), // newer VERIFIED, but not preferred
+      ]);
+      const [year] = await service.listByVillage(5);
+      expect(year.preferred).toMatchObject({
+        id: 3,
+        isPreferred: true,
+        isFallback: false,
+      });
+      expect(year.alternatives.map((a) => a.id)).toEqual([8]);
+    });
+
+    it('falls back to the most recent VERIFIED figure when none is preferred', async () => {
+      const { service, populationRecord } = setup();
+      populationRecord.findMany.mockResolvedValue([
+        rec({ id: 1, population: 900 }),
+        rec({ id: 4, population: 950 }),
+        rec({ id: 6, population: 990, status: 'PENDING' }), // newest, but not verified
+      ]);
+      const [year] = await service.listByVillage(5);
+      expect(year.preferred).toMatchObject({
+        id: 4,
+        isPreferred: false,
+        isFallback: true,
+      });
+      // the others stay visible: VERIFIED first, then PENDING
+      expect(year.alternatives.map((a) => a.id)).toEqual([1, 6]);
+      expect(year.alternatives.every((a) => a.isFallback === false)).toBe(true);
+    });
+
+    it('has no main figure when the year only has PENDING figures', async () => {
+      const { service, populationRecord } = setup();
+      populationRecord.findMany.mockResolvedValue([
+        rec({ id: 1, status: 'PENDING' }),
+        rec({ id: 2, status: 'PENDING' }),
+      ]);
+      const [year] = await service.listByVillage(5);
+      expect(year.preferred).toBeNull();
+      expect(year.alternatives.map((a) => a.id)).toEqual([1, 2]);
+    });
   });
 
-  it('includes the source of every figure', async () => {
+  it('includes the source of every figure, main and alternatives', async () => {
     const { service, populationRecord } = setup();
-    populationRecord.findMany.mockResolvedValue([rec()]);
+    populationRecord.findMany.mockResolvedValue([
+      rec({ id: 1 }), // VERIFIED: the main figure (fallback)
+      rec({ id: 2, status: 'PENDING' }), // an alternative
+    ]);
     const [year] = await service.listByVillage(5);
+    expect(year.preferred?.source).toEqual(source);
     expect(year.alternatives[0].source).toEqual(source);
   });
 });
