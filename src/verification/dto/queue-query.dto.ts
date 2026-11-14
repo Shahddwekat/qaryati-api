@@ -1,25 +1,9 @@
-import { Type } from 'class-transformer';
-import { IsIn, IsInt, IsOptional, Max, Min } from 'class-validator';
+import { IsIn, IsOptional } from 'class-validator';
+import { PaginationQueryDto } from '../../common/dto/pagination-query.dto';
 import { ENTITY_SLUG_LIST } from '../verification.types';
 
-/**
- * Query string of GET /verification/queue.
- * NOTE: page/limit live here until the shared PaginationQueryDto exists.
- */
-export class QueueQueryDto {
-  @IsOptional()
-  @Type(() => Number)
-  @IsInt()
-  @Min(1)
-  page: number = 1;
-
-  @IsOptional()
-  @Type(() => Number)
-  @IsInt()
-  @Min(1)
-  @Max(100)
-  limit: number = 20;
-
+/** Query string of GET /verification/queue (`page` and `limit` come from PaginationQueryDto). */
+export class QueueQueryDto extends PaginationQueryDto {
   /** Only show one kind of fact, e.g. `population-records`. */
   @IsOptional()
   @IsIn(ENTITY_SLUG_LIST)
