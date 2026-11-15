@@ -1,49 +1,59 @@
-# Optimization: index for the village list
+# Optimization: faster village list
 
 **Endpoint:** `GET /api/v1/villages` (list without `q`), sorted by `nameEn` by default.
-**Change:** two composite indexes on `villages` and a matching tie-break in the query
-(migration `20261114120000_villages_list_index`).
+**Changes:**
+1. two composite indexes on `villages`, with a tie-break in the same direction as the sort
+   (migration `20261114120000_villages_list_index`);
+2. the page and the total are read in parallel, without a database transaction.
 
 ## Problem
-The first k6 runs (`perf/k6/villages-read.js`, 5,000 test villages) showed the list as the
-slowest read endpoint by far. On a Windows laptop with MySQL in Docker, a 20-second check gave:
+The first k6 runs (`perf/k6/villages-read.js`, 5,000 test villages, ramp to 50 virtual users)
+showed the list as the slowest read endpoint by far. On a Windows laptop with MySQL 8.4 in
+Docker, **even the fastest list request took 132 ms**, while details and nearby answered in
+2-3 ms. A fixed cost on every request pointed to how the list queries the database, not to load.
 
-| Endpoint | p95 |
-|---|---|
-| details | 19 ms |
-| nearby | 18 ms |
-| search | 21 ms |
-| **list** | **173 ms** |
-
-The list query is:
+The list runs two queries: the page and `COUNT(*)` for `meta.total`:
 ```sql
-SELECT ... FROM villages
-WHERE deleted_at IS NULL
-ORDER BY name_en ASC, id ASC
-LIMIT 20 OFFSET ?;
+SELECT ... FROM villages WHERE deleted_at IS NULL
+ORDER BY name_en ASC, id ASC LIMIT 20 OFFSET ?;
+
+SELECT COUNT(*) FROM villages WHERE deleted_at IS NULL;
 ```
+
+We found two causes.
+
+### Cause 1: no index for the sort order
 `EXPLAIN` showed that MySQL used **no index**, read **all ~5,000 rows** and sorted them
-(`Using filesort`) on every request, only to return 20 of them:
+(`Using filesort`) on every request, only to return 20:
 
 | | key | rows | Extra |
 |---|---|---|---|
 | before | `NULL` | 4,864 | Using where; **Using filesort** |
 
-The existing index on `deleted_at` alone cannot help with the order: almost every village
-has `deleted_at = NULL`, so it does not narrow anything down, and it is not sorted by name.
+The existing index on `deleted_at` alone does not help: almost every village has
+`deleted_at = NULL`, so it narrows nothing down, and it is not sorted by name.
 
-## Change
-1. New indexes (`prisma/schema.prisma`):
+### Cause 2: a transaction for two reads
+The service wrapped both queries in `prisma.$transaction([...])`. A transaction takes a
+dedicated connection and adds extra round trips (`BEGIN` ... `COMMIT`). For a read-only list
+that is not needed: if a village is added between the two queries, the total is off by one
+for that single request, which is harmless. Search already ran its two queries in parallel
+without a transaction, and its fastest request was 6 ms. On the Windows + Docker setup this
+transaction overhead was the largest part of the 130 ms.
+
+## Changes
+1. **Indexes** (`prisma/schema.prisma`):
    ```prisma
    @@index([deletedAt, nameEn])
    @@index([deletedAt, nameAr])
    ```
    Inside `deleted_at IS NULL`, the index entries are already sorted by name, and InnoDB adds
-   the primary key (`id`) to every index entry, so the order `name, id` comes for free.
-   MySQL now reads the first matching entries in order and stops after `OFFSET + 20`.
-2. The tie-break now follows the sort direction (`orderBy: [{ nameEn: order }, { id: order }]`
-   instead of always `id: 'asc'`). With mixed directions (`name DESC, id ASC`) MySQL cannot
-   read the index backwards and sorts again. The result order is still stable and complete.
+   the primary key (`id`) to every index entry, so `name, id` order comes for free. MySQL reads
+   the entries in order and stops after `OFFSET + 20`.
+2. **Tie-break in the sort direction:** `orderBy: [{ nameEn: order }, { id: order }]` instead
+   of always `id: 'asc'`. With mixed directions (`name DESC, id ASC`) MySQL cannot read the
+   index backwards and sorts again. The order stays stable and complete.
+3. **No transaction:** `Promise.all([findMany, count])` instead of `$transaction([...])`.
 
 `EXPLAIN` after the change:
 
@@ -57,34 +67,59 @@ has `deleted_at = NULL`, so it does not narrow anything down, and it is not sort
 No more `filesort` for the name sorts.
 
 ## Results
-Same data (5,000 test villages), same load (`villages-read.js`: ramp to 50 virtual users,
-1 minute hold, about 4,200 requests), measured on a Linux test machine with MySQL 8:
+Same data (5,000 test villages) and the same load in every run (`npm run perf:villages`:
+ramp to 50 virtual users in 30 s, hold 1 minute, ramp down; about 4,000 requests, 0 errors).
 
-| list endpoint | before | after | change |
+### Windows laptop, MySQL 8.4 in Docker (main measurement)
+| list endpoint | before | index only | index + no transaction | change |
+|---|---|---|---|---|
+| average | 149.6 ms | 150.4 ms | **50.2 ms** | **−66%** |
+| median | 143.4 ms | 143.6 ms | **38.9 ms** | **−73%** |
+| p95 | 180.9 ms | 184.4 ms | **134.1 ms** | −26% |
+| fastest | 132.0 ms | 131.2 ms | **3.6 ms** | |
+
+Whole API (all four endpoints together), before → after:
+
+| | before | after | change |
+|---|---|---|---|
+| average | 83.9 ms | 60.7 ms | −28% |
+| median | 73.8 ms | 44.5 ms | −40% |
+| p95 | 172.1 ms | 172.8 ms | same |
+| requests in 1m50s | 3,940 | 4,023 | +2% |
+
+Note: the p95 of details (144 → 193 ms) and search (152 → 206 ms) went up in the "after" run,
+while their averages and medians changed much less. The laptop was also running Docker,
+the API and k6 at the same time, so the slowest 5% vary between runs; we report the numbers
+as measured. The list itself improved clearly in every statistic.
+
+### Linux test machine, MySQL 8 (index only)
+On a machine without the transaction overhead the index alone made a clear difference:
+
+| list endpoint | before | after (index) | change |
 |---|---|---|---|
 | average | 13.6 ms | 6.1 ms | **−55%** |
-| median | 12.6 ms | 5.3 ms | −58% |
 | p95 | 22.1 ms | 10.6 ms | **−52%** |
-| max | 46.4 ms | 28.4 ms | −39% |
 
-The query alone (`EXPLAIN`ed query, run 300 times in a row): **5.5 ms → 0.85 ms** per query.
+The query alone (run 300 times in a row): **5.5 ms → 0.85 ms**.
 
-Other endpoints did not change in a meaningful way (all p95 below 20 ms), and there were
-**0 failed requests** in both runs.
-
-The gain grows with the number of villages: without the index the sort cost grows with
-every village, with the index the query only reads `OFFSET + 20` index entries.
+### What we learned
+- `EXPLAIN` found the missing index, but **fixing the query plan did not change the numbers
+  on the laptop**: the measurement showed that another cost (the transaction) was bigger.
+  Without measuring before and after we would have stopped after the index.
+- The index matters more as data grows: without it the sort cost grows with every village,
+  with it the query only reads `OFFSET + 20` index entries.
 
 ## Trade-offs
-- Two more indexes: a little more disk space, and every insert/update of a village name
-  updates two more index entries. Villages are read far more often than written, so this
-  is a good trade.
-- `COUNT(*)` for `meta.total` still counts all visible villages (through the `deleted_at`
-  index). That is fast at this size; for much larger tables we could cache the total.
-- Sorting by `createdAt` still sorts in memory (no index for it). It is not the default
-  and rarely used; add `@@index([deletedAt, createdAt])` if that changes.
-- Very deep pages (large `OFFSET`) still read all skipped index entries. Keyset ("after
-  this name") pagination would fix that, but it would change the API.
+- Two more indexes: a little more disk space, and each insert/update of a village name
+  updates two more index entries. Villages are read far more often than written.
+- Without the transaction, `meta.total` can be off by one if a village is created or hidden
+  between the two reads of the same request. Acceptable for a public list.
+- `COUNT(*)` still counts all visible villages. Fast at this size; with much more data the
+  total could be cached.
+- Sorting by `createdAt` still sorts in memory (no index). It is not the default; add
+  `@@index([deletedAt, createdAt])` if it becomes common.
+- Very deep pages (large `OFFSET`) still read all skipped index entries. Keyset ("after this
+  name") pagination would avoid that, but it would change the API.
 
 ## How to repeat the measurement
 ```
@@ -93,6 +128,7 @@ npm run build
 npm run start:prod
 npm run perf:villages          # in a second terminal, ~2 minutes
 ```
-For "before", check out the commit before this change, run `npx prisma migrate reset`
-(or drop the two indexes by hand), and repeat. Remove the test data afterwards with
+Stop and restart `start:prod` after every `npm run build`, otherwise the old code keeps
+running (port 3000 stays taken). For "before", check out the commit before this change and
+drop the two indexes (or `npx prisma migrate reset`). Remove the test data afterwards with
 `npm run perf:seed -- --clean`.
