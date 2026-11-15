@@ -108,5 +108,6 @@ Please wait for the green check before merging.
 - [Error model](docs/architecture/error-model.md): the error body, status codes and request ids
 - [Authentication, authorization and audit](docs/architecture/auth-authorization-audit.md): tokens, roles, login rate limiting
 - Performance tests (k6): [perf/README.md](perf/README.md); reports in `docs/performance/`
+  - [Optimization: faster village list](docs/performance/village-list-index.md)
 - API documentation (Swagger UI): http://localhost:3000/api/docs when the API is running;
   OpenAPI JSON at http://localhost:3000/api/docs-json
