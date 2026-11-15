@@ -57,6 +57,17 @@ describe('VillagesService.list', () => {
     expect(page.meta).toEqual({ page: 2, limit: 10, total: 21, totalPages: 3 });
   });
 
+  it('reads the page and the total without a transaction', async () => {
+    const { service, village, prisma } = setup();
+    village.findMany.mockResolvedValue([]);
+    village.count.mockResolvedValue(42);
+
+    const page = await service.list(query({}));
+
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+    expect(page.meta.total).toBe(42);
+  });
+
   it('filters by governorate and municipality', async () => {
     const { service, village } = setup();
     await service.list(query({ governorateId: 4, municipalityId: 7 }));
@@ -66,13 +77,15 @@ describe('VillagesService.list', () => {
     expect(village.count.mock.calls[0][0].where).toEqual(where);
   });
 
-  it('sorts by the requested field, with id as a stable tie-breaker', async () => {
+  it('sorts by the requested field, with id as a tie-breaker in the same direction', async () => {
     const { service, village } = setup();
     await service.list(query({ sortBy: 'nameAr', order: 'desc' }));
 
+    // Same direction for both, so MySQL can read the (deleted_at, name_ar)
+    // index backwards instead of sorting all villages.
     expect(village.findMany.mock.calls[0][0].orderBy).toEqual([
       { nameAr: 'desc' },
-      { id: 'asc' },
+      { id: 'desc' },
     ]);
   });
 

@@ -82,6 +82,9 @@ async function clean(): Promise<void> {
   await prisma.populationRecord.deleteMany({ where });
   await prisma.villageName.deleteMany({ where });
   await prisma.village.deleteMany({ where: { id: { gte: PERF_FIRST_ID } } });
+  // After deleting thousands of names, MySQL's full-text index can stop finding
+  // names added later (the e2e search tests then fail). Rebuilding it fixes that.
+  await prisma.$queryRawUnsafe('OPTIMIZE TABLE village_names');
 }
 
 async function main(): Promise<void> {

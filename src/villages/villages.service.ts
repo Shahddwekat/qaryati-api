@@ -71,11 +71,17 @@ export class VillagesService {
       ...(query.municipalityId && { municipalityId: query.municipalityId }),
     };
 
-    const [rows, total] = await this.prisma.$transaction([
+    // Two independent reads in parallel, like search(). No transaction: a read-only
+    // list does not need one, and each transaction costs extra round trips (BEGIN,
+    // COMMIT) on a dedicated connection, which was the slowest part of this endpoint
+    // in the k6 runs (docs/performance/village-list-index.md).
+    const [rows, total] = await Promise.all([
       this.prisma.village.findMany({
         where,
         select: SUMMARY,
-        orderBy: [{ [query.sortBy]: query.order }, { id: 'asc' }],
+        // The id tie-break follows the same direction as the sort, so MySQL can read
+        // the (deleted_at, name) index forwards or backwards instead of sorting.
+        orderBy: [{ [query.sortBy]: query.order }, { id: query.order }],
         ...toSkipTake(query),
       }),
       this.prisma.village.count({ where }),

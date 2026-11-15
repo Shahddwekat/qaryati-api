@@ -338,6 +338,11 @@ model Village {
   @@index([municipalityId])
   @@index([latitude, longitude])
   @@index([deletedAt])
+  // GET /villages lists visible villages sorted by name: these indexes return the rows
+  // already in order, so MySQL does not sort every village on each request
+  // (docs/performance/village-list-index.md)
+  @@index([deletedAt, nameEn])
+  @@index([deletedAt, nameAr])
   @@map("villages")
 }
 
