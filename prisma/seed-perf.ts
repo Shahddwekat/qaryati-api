@@ -6,6 +6,11 @@
 //
 // Optional: PERF_VILLAGES=20000 npm run perf:seed
 //
+// Heritage data: about 1 village in 10 gets a landmark, a cultural trait, an economic
+// activity and a facility, and every 50th village a historical event that is shared
+// with the next village. The rest have empty heritage lists, like most real villages
+// at the start. All of it is removed again by --clean.
+//
 // Test villages use ids from 10001 upwards, so they never collide with the
 // development seed. Running it again first removes the old test villages, so
 // the result is always the same (the random generator has a fixed start value).
@@ -13,6 +18,15 @@
 import 'dotenv/config';
 import { PrismaMariaDb } from '@prisma/adapter-mariadb';
 import {
+  CulturalCategory,
+  DatePrecision,
+  EconomicType,
+  EventCategory,
+  FacilityStatus,
+  FacilityType,
+  Importance,
+  LandmarkCondition,
+  LandmarkType,
   NameLanguage,
   NameType,
   PrismaClient,
@@ -22,6 +36,12 @@ import {
 export const PERF_FIRST_ID = 10001;
 const COUNT = Number(process.env.PERF_VILLAGES ?? 5000);
 const CHUNK = 1000;
+// One village in HERITAGE_EVERY gets heritage rows; one in EVENT_EVERY gets an event.
+const HERITAGE_EVERY = 10;
+const EVENT_EVERY = 50;
+// Marks the test events (they are not linked to a village by a column, so --clean finds them by this).
+const EVENT_TITLE = 'Performance test event';
+const NOT_REAL = 'Performance test data, not real.';
 
 const prisma = new PrismaClient({
   adapter: new PrismaMariaDb({
@@ -79,6 +99,15 @@ const LNG = [34.95, 35.55] as const;
 
 async function clean(): Promise<void> {
   const where = { villageId: { gte: PERF_FIRST_ID } };
+  // Heritage first: it points to the villages. Deleting the events also deletes
+  // their links to villages (ON DELETE CASCADE).
+  await prisma.historicalEvent.deleteMany({
+    where: { title: { startsWith: EVENT_TITLE } },
+  });
+  await prisma.landmark.deleteMany({ where });
+  await prisma.culturalTrait.deleteMany({ where });
+  await prisma.economicActivity.deleteMany({ where });
+  await prisma.facility.deleteMany({ where });
   await prisma.populationRecord.deleteMany({ where });
   await prisma.villageName.deleteMany({ where });
   await prisma.village.deleteMany({ where: { id: { gte: PERF_FIRST_ID } } });
@@ -117,10 +146,16 @@ async function main(): Promise<void> {
 
   let names = 0;
   let population = 0;
+  let heritage = 0;
   for (let start = 0; start < COUNT; start += CHUNK) {
     const villages = [];
     const villageNames = [];
     const records = [];
+    const landmarks = [];
+    const traits = [];
+    const activities = [];
+    const facilities = [];
+    const eventVillageIds: number[][] = [];
 
     for (let i = start; i < Math.min(start + CHUNK, COUNT); i++) {
       const id = PERF_FIRST_ID + i;
@@ -184,19 +219,96 @@ async function main(): Promise<void> {
           ...verified,
         });
       }
+
+      // Heritage: by position, not with random(), so the villages and names above
+      // stay exactly as they were before heritage was added to this file.
+      if (i % HERITAGE_EVERY === 0) {
+        const heritageBase = {
+          villageId: id,
+          sourceId: source.id,
+          submittedById: contributor.id,
+          verifiedById: verifier.id,
+          verifiedAt: verified.verifiedAt,
+        };
+        landmarks.push({
+          ...heritageBase,
+          status: VerificationStatus.VERIFIED,
+          nameAr: `معلم ${root.ar} ${i + 1}`,
+          nameEn: `${root.en} landmark ${i + 1}`,
+          type: LandmarkType.SPRING,
+          description: NOT_REAL,
+          currentCondition: LandmarkCondition.GOOD,
+        });
+        traits.push({
+          ...heritageBase,
+          status: VerificationStatus.VERIFIED,
+          category: CulturalCategory.FOOD,
+          title: `${root.en} dish ${i + 1}`,
+          description: NOT_REAL,
+        });
+        activities.push({
+          ...heritageBase,
+          status: VerificationStatus.VERIFIED,
+          type: EconomicType.AGRICULTURE,
+          name: `${root.en} harvest ${i + 1}`,
+          description: NOT_REAL,
+          importance: Importance.MAIN,
+        });
+        facilities.push({
+          ...heritageBase,
+          verificationStatus: VerificationStatus.VERIFIED,
+          type: FacilityType.SCHOOL,
+          name: `${root.en} school ${i + 1}`,
+          status: FacilityStatus.ACTIVE,
+        });
+      }
+      if (i % EVENT_EVERY === 0) {
+        // An event shared by this village and the next one (if it is a test village).
+        eventVillageIds.push(i + 1 < COUNT ? [id, id + 1] : [id]);
+      }
     }
 
     await prisma.village.createMany({ data: villages });
     await prisma.villageName.createMany({ data: villageNames });
     await prisma.populationRecord.createMany({ data: records });
+    await prisma.landmark.createMany({ data: landmarks });
+    await prisma.culturalTrait.createMany({ data: traits });
+    await prisma.economicActivity.createMany({ data: activities });
+    await prisma.facility.createMany({ data: facilities });
+    // Events need their links to villages, so they are created one by one (few of them).
+    for (const villageIds of eventVillageIds) {
+      await prisma.historicalEvent.create({
+        data: {
+          title: `${EVENT_TITLE} ${villageIds[0]}`,
+          description: NOT_REAL,
+          category: EventCategory.SOCIAL,
+          datePrecision: DatePrecision.YEAR,
+          yearFrom: 1948,
+          sourceId: source.id,
+          status: VerificationStatus.VERIFIED,
+          submittedById: contributor.id,
+          verifiedById: verifier.id,
+          verifiedAt: verified.verifiedAt,
+          villages: {
+            create: villageIds.map((villageId) => ({ villageId })),
+          },
+        },
+      });
+    }
     names += villageNames.length;
     population += records.length;
+    heritage +=
+      landmarks.length +
+      traits.length +
+      activities.length +
+      facilities.length +
+      eventVillageIds.length;
     console.log(`  ${Math.min(start + CHUNK, COUNT)} / ${COUNT} villages`);
   }
 
   console.log(
     `Added ${COUNT} test villages (ids ${PERF_FIRST_ID}-${PERF_FIRST_ID + COUNT - 1}), ` +
-      `${names} names, ${population} population records.\n` +
+      `${names} names, ${population} population records, ${heritage} heritage rows.\n` +
       'Remove them before running the e2e tests: npm run perf:seed -- --clean',
   );
 }

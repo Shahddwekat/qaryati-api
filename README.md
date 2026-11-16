@@ -108,6 +108,7 @@ Please wait for the green check before merging.
 - [Error model](docs/architecture/error-model.md): the error body, status codes and request ids
 - [Authentication, authorization and audit](docs/architecture/auth-authorization-audit.md): tokens, roles, login rate limiting
 - [Provenance and verification](docs/architecture/provenance.md): how a fact goes from PENDING to VERIFIED or REJECTED, the preferred value, conflicting sources, the four-eyes rule and the review queue
+- [Geocoding](docs/architecture/geocoding.md): how coordinates are looked up, the retry rules, what happens when the service is down, and the `GEOCODING_*` settings
 - Performance tests (k6): [perf/README.md](perf/README.md); reports in `docs/performance/`
   - [Optimization: faster village list](docs/performance/village-list-index.md)
 - API documentation (Swagger UI): http://localhost:3000/api/docs when the API is running;

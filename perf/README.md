@@ -15,7 +15,7 @@ Measure the **built** API, not `start:dev` (watch mode is slower and restarts on
 ```
 docker compose up -d                  # MySQL
 npx prisma db seed                    # users, sources, governorates (if not done yet)
-npm run perf:seed                     # + 5,000 test villages (ids 10001-15000)
+npm run perf:seed                     # + 5,000 test villages (ids 10001-15000), a few with heritage rows
 npm run build
 npm run start:prod                    # API on http://localhost:3000
 ```
