@@ -107,6 +107,7 @@ Please wait for the green check before merging.
 - [ERD](docs/architecture/erd.md) and [data dictionary](docs/architecture/data-dictionary.md)
 - [Error model](docs/architecture/error-model.md): the error body, status codes and request ids
 - [Authentication, authorization and audit](docs/architecture/auth-authorization-audit.md): tokens, roles, login rate limiting
+- [Security overview](docs/security.md): what protects the API (tokens, roles, validation, error bodies, secrets) and the known limits
 - [Provenance and verification](docs/architecture/provenance.md): how a fact goes from PENDING to VERIFIED or REJECTED, the preferred value, conflicting sources, the four-eyes rule and the review queue
 - Performance tests (k6): [perf/README.md](perf/README.md); reports in `docs/performance/`
   - [Optimization: faster village list](docs/performance/village-list-index.md)
