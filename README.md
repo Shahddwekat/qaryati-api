@@ -4,25 +4,29 @@ API-centric backend for structured, source-backed information about Palestinian 
 Advanced Software Engineering
 
 ## Status
-Walking skeleton: NestJS + MySQL 8.4 (Docker) + Prisma 7, with a `/health` endpoint.
-Database schema: 16 tables with the initial migration, plus development seed data.
+Feature-complete REST API (`/api/v1`, Swagger at `/api/docs`):
+villages and geography, authentication and roles, sources, verification with provenance,
+population, heritage, geocoding, audit log.
+NestJS 12 + MySQL 8.4 + Prisma 7, runs fully in Docker. Unit and end-to-end tests run in CI
+on every pull request, and k6 load tests are in `perf/`.
+See the [architecture overview](docs/architecture/overview.md).
 
 ## Team
 | Name | GitHub | Main modules |
 |------|--------|--------------|
-| | [@Shahddwekat](https://github.com/Shahddwekat) | |
-| | [@BatoolMasri](https://github.com/BatoolMasri) | |
-| | [@danasamaro](https://github.com/danasamaro) | |
-| | [@janasalahat](https://github.com/janasalahat) | |
+| Shahd | [@Shahddwekat](https://github.com/Shahddwekat) | villages, geography, shared infrastructure (database, CI, errors, Swagger, Docker, k6) |
+| Batool | [@BatoolMasri](https://github.com/BatoolMasri) | auth, users, audit |
+| Dana | [@danasamaro](https://github.com/danasamaro) | sources, verification, population |
+| Jana | [@janasalahat](https://github.com/janasalahat) | heritage, geocoding |
 
 ## Quick start
 Requirements: **Node.js 24+** and **Docker Desktop**.
 
-1. Clone and install (this also generates the Prisma client):
+1. Clone and install exactly the versions in `package-lock.json` (this also generates the Prisma client):
    ```
    git clone https://github.com/Shahddwekat/qaryati-api.git
    cd qaryati-api
-   npm install
+   npm ci
    ```
 2. Create your local env file (never commit it):
    ```
@@ -102,6 +106,8 @@ lint, build, unit tests, then migrations + seed + end-to-end tests on a real MyS
 Please wait for the green check before merging.
 
 ## Documentation
+- [Architecture overview](docs/architecture/overview.md): modules, request flow, data, how it runs
+- [Deployment](docs/deployment.md): Docker, `.env` settings, checklist, operations, troubleshooting
 - [Contributing guide](CONTRIBUTING.md)
 - [Architecture Decision Records](docs/adr/)
 - [ERD](docs/architecture/erd.md) and [data dictionary](docs/architecture/data-dictionary.md)
