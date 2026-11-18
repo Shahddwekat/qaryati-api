@@ -89,7 +89,7 @@ Good to know when the service is down:
   (about 1.5 s of waiting in total); they do not replace trying again after a few minutes.
 
 Time for one request in the worst case: 3 tries x 3 s timeout + 1.5 s of retry waits +
-the 1 s rate-limit waits, so a few seconds before the `503` arrives.
+the 1 s rate-limit waits, so up to about 12 seconds before the `503` arrives.
 
 ## Settings (`.env`)
 
