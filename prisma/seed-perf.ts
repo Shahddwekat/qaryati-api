@@ -108,6 +108,20 @@ async function clean(): Promise<void> {
   await prisma.culturalTrait.deleteMany({ where });
   await prisma.economicActivity.deleteMany({ where });
   await prisma.facility.deleteMany({ where });
+  // k6 write tests (population-write.js) also leave audit rows for the records they
+  // created and verified; remove those together with the records.
+  const records = await prisma.populationRecord.findMany({
+    where,
+    select: { id: true },
+  });
+  for (let i = 0; i < records.length; i += 1000) {
+    await prisma.auditLog.deleteMany({
+      where: {
+        entityType: 'population_record',
+        entityId: { in: records.slice(i, i + 1000).map((r) => r.id) },
+      },
+    });
+  }
   await prisma.populationRecord.deleteMany({ where });
   await prisma.villageName.deleteMany({ where });
   await prisma.village.deleteMany({ where: { id: { gte: PERF_FIRST_ID } } });
