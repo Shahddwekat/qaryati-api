@@ -11,6 +11,17 @@ export function configureApp(app: INestApplication): void {
   // Apply HTTP security headers
   app.use(helmet());
 
+  // Allow browser access only from configured origins
+  app.enableCors({
+    origin: (process.env.CORS_ORIGINS ?? '')
+      .split(',')
+      .map((o) => o.trim())
+      .filter(Boolean),
+    methods: ['GET', 'POST', 'PATCH', 'DELETE'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Request-Id'],
+    exposedHeaders: ['X-Request-Id', 'Retry-After'],
+  });
+
   // Give every request an id (X-Request-Id) and log it
   app.use(requestIdMiddleware);
 
