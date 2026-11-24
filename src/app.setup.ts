@@ -1,4 +1,5 @@
 import { INestApplication, ValidationPipe } from '@nestjs/common';
+import helmet from 'helmet';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 import { requestIdMiddleware } from './common/middleware/request-id.middleware';
 
@@ -7,6 +8,9 @@ import { requestIdMiddleware } from './common/middleware/request-id.middleware';
  * so the tests run the API exactly as it runs in production.
  */
 export function configureApp(app: INestApplication): void {
+  // Apply HTTP security headers
+  app.use(helmet());
+
   // Give every request an id (X-Request-Id) and log it
   app.use(requestIdMiddleware);
 
