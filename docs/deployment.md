@@ -50,6 +50,7 @@ All settings come from `.env` (never committed). Inside Docker, `DB_HOST`, `DB_P
 | `JWT_ACCESS_TOKEN_TTL_MINUTES` | `15` | lifetime of access tokens |
 | `JWT_REFRESH_TOKEN_TTL_DAYS` | `7` | lifetime of refresh tokens |
 | `LOGIN_RATE_LIMIT`, `LOGIN_RATE_TTL_MS` | `5`, `60000` | login attempts per IP per window, then 429 |
+| `CORS_ORIGINS` | empty | comma-separated allowed browser origins; empty disallows cross-origin browser access |
 | `GEOCODING_USER_AGENT` | placeholder | **required**: your app name and a real contact (Nominatim policy) |
 | `GEOCODING_BASE_URL` | empty (= public Nominatim) | point to your own Nominatim server if needed |
 | `GEOCODING_TIMEOUT_MS` | `3000` | time per geocoding try |
@@ -75,7 +76,7 @@ people, also check:
       `docker-compose.yml` (the API reaches it through the Docker network).
 - [ ] Put a reverse proxy with HTTPS (for example Nginx or Caddy) in front of port 3000.
 - [ ] Read the "Known limits" in [security](security.md): login rate limit kept in memory per
-      process, no Helmet / CORS settings yet, `trust proxy` not configured.
+      process, `trust proxy` not configured.
 
 ## 5. Updating
 ```
