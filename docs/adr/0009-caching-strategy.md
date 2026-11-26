@@ -1,8 +1,8 @@
 # ADR-0009: Caching Strategy
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Date:** 2026-11-25
-- **Deciders:** Jana
+- **Deciders:** Jana (with the whole team to review)
 
 ## Context
 
