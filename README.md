@@ -111,6 +111,7 @@ Please wait for the green check before merging.
 - [API conventions](docs/api-conventions.md): URLs, methods, status codes, pagination, filters, sorting, headers
 - [Contributing guide](CONTRIBUTING.md)
 - [Architecture Decision Records](docs/adr/)
+- [ADR-0009: Caching Strategy](docs/adr/0009-caching-strategy.md)
 - [ERD](docs/architecture/erd.md) and [data dictionary](docs/architecture/data-dictionary.md)
 - [Error model](docs/architecture/error-model.md): the error body, status codes and request ids
 - [Authentication, authorization and audit](docs/architecture/auth-authorization-audit.md): tokens, roles, login rate limiting
