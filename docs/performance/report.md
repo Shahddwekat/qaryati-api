@@ -3,6 +3,11 @@
 All four k6 scenarios were run on the same machine with the same data and the same load
 profile. This page reports the results, the bottlenecks we found, and the optimization we made.
 
+> **Read the numbers with the environment in mind:** everything ran on one Windows laptop, with
+> MySQL in Docker Desktop and k6 on the same machine. Absolute times depend on the machine
+> (on a Linux test machine the same endpoints were several times faster); compare runs only on
+> the same machine. The raw k6 results are in [`results/`](results/).
+
 ## 1. Setup
 | | |
 |---|---|
@@ -157,6 +162,9 @@ k6 run --summary-export=perf/results/auth.json             perf/k6/auth.js
 k6 run --summary-export=perf/results/population-write.json perf/k6/population-write.js
 npm run perf:seed -- --clean
 ```
-In the summary JSON files, a threshold value of `true` means the target was **missed**.
+The k6 summaries of the runs in this report are committed in [`results/`](results/)
+(`villages-read.json`, `heritage-read.json`, `population-write.json`, `auth.json`; the login
+tokens that k6 stores under `setup_data` were removed). In these files a threshold value of
+`true` means the target was **missed**.
 Results depend on the machine; compare runs only on the same machine. See
 [perf/README.md](../../perf/README.md).
