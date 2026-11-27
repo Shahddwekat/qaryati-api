@@ -16,7 +16,7 @@ export class PrismaService
         user: process.env.DB_USER,
         password: process.env.DB_PASSWORD,
         database: process.env.DB_NAME,
-        connectionLimit: 10,
+        connectionLimit: Number(process.env.DB_POOL_SIZE ?? 10),
         // MySQL 8 login over a local, non-TLS connection needs this.
         allowPublicKeyRetrieval: true,
       }),

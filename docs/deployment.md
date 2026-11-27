@@ -45,6 +45,7 @@ All settings come from `.env` (never committed). Inside Docker, `DB_HOST`, `DB_P
 | `DB_PASSWORD` | `change-me` | **change** for any shared or public machine |
 | `DB_ROOT_PASSWORD` | `change-me-root` | **change**; only used by MySQL itself |
 | `DB_PORT` | `3306` | port on the **host**; change it if 3306 is taken |
+| `DB_POOL_SIZE` | `10` | max database connections in the Prisma pool; used by the API, not by Docker |
 | `API_PORT` | `3000` (not in the file) | port on the host for the Docker API |
 | `JWT_SECRET` | placeholder | **required**, at least 32 random characters, or the API does not start. With the example value it starts but logs a warning |
 | `JWT_ACCESS_TOKEN_TTL_MINUTES` | `15` | lifetime of access tokens |

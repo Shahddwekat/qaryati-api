@@ -168,3 +168,15 @@ tokens that k6 stores under `setup_data` were removed). In these files a thresho
 `true` means the target was **missed**.
 Results depend on the machine; compare runs only on the same machine. See
 [perf/README.md](../../perf/README.md).
+
+## Pool size 10 vs 20
+
+| Metric | Pool 10 | Pool 20 |
+|---|---|---|
+| create avg / p95 | 812 ms / 1173 ms | 254 ms / 368 ms |
+| queue avg / p95 | 267 ms / 426 ms | 38 ms / 87 ms |
+| verify avg / p95 | 479 ms / 656 ms | 269 ms / 330 ms |
+| Requests per second | 26.1 | 36.0 |
+| Errors | 0 of 2904 requests | 0 of 4032 requests |
+
+Finding: Pool 20 was clearly faster in this run. Throughput rose from 26.1 to 36.0 requests per second, about 38 percent more, and p95 dropped on every endpoint: create 1173 to 368 ms, queue 426 to 87 ms, verify 656 to 330 ms. With pool 10 the p95 threshold of 500 ms was breached for create and verify; with pool 20 all three stayed under it. There were no errors in either run. Note: one run per setting, on a local machine with MySQL in Docker, so the exact numbers are indicative.
