@@ -1,0 +1,10 @@
+# One name and email per person, so `git shortlog -sne` counts each member once.
+# Format: Proper Name <proper@email> Commit Name <commit@email>
+Shahd <shahddwekat525@gmail.com> <shahdenad0@gmail.com>
+Shahd <shahddwekat525@gmail.com> shahddwekat <shahdenad0@gmail.com>
+Batool <s12220471@stu.najah.edu> <s12220471@stu.najaj.edu>
+Batool <s12220471@stu.najah.edu> BatoolMasri <s12220471@stu.najah.edu>
+Batool <s12220471@stu.najah.edu> BatoolMasri <s12220471@stu.najaj.edu>
+Dana <s12216919@stu.najah.edu> danasamaro <s12216919@stu.najah.edu>
+Jana <jana.salahat05@gmail.com> janasalahat <jana.salahat05@gmail.com>
+Jana <jana.salahat05@gmail.com> Jana Salahat <jana.salahat05@gmail.com>

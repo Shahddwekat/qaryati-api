@@ -1,7 +1,7 @@
 
 import 'dotenv/config';
 
-import { Module } from '@nestjs/common';
+import { Logger, Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
 import { PrismaModule } from '../prisma/prisma.module';
 import { AuditService } from '../audit/audit.service';
@@ -14,6 +14,16 @@ const jwtSecret = process.env.JWT_SECRET;
 if (!jwtSecret || jwtSecret.length < 32) {
   throw new Error(
     'JWT_SECRET must be configured with at least 32 characters',
+  );
+}
+
+// The example value is long enough to start (so a fresh clone runs with one command),
+// but it is public. Warn loudly so nobody deploys with it.
+const EXAMPLE_JWT_SECRET = 'change-me-to-a-long-random-string';
+if (jwtSecret === EXAMPLE_JWT_SECRET && process.env.NODE_ENV !== 'test') {
+  new Logger('Security').warn(
+    'JWT_SECRET is still the example value from .env.example. ' +
+      'Fine for local development, but set a random secret before any real deployment.',
   );
 }
 

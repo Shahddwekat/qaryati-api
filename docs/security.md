@@ -102,7 +102,9 @@ considered before a public production deployment.
 - Change the placeholders before running anywhere other than your own computer:
   `JWT_SECRET` (at least 32 random characters), `DB_PASSWORD`, `DB_ROOT_PASSWORD` and
   `SEED_USER_PASSWORD`. The seed accounts (`admin@qaryati.local` and so on) are for development
-  only and must not exist in a real deployment.
+  only and must not exist in a real deployment: set `SEED_DEV_DATA=false` so the seed skips them.
+- The API logs a warning at startup when `JWT_SECRET` is still the example value from
+  `.env.example`. It still starts, so a fresh clone runs with one command.
 - Never put a secret in code, in a test, in an issue or in a pull request. Pull requests have a
   checklist item for it. If one is committed by mistake, change the secret, because deleting
   the commit does not make it safe again.

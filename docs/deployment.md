@@ -46,7 +46,7 @@ All settings come from `.env` (never committed). Inside Docker, `DB_HOST`, `DB_P
 | `DB_ROOT_PASSWORD` | `change-me-root` | **change**; only used by MySQL itself |
 | `DB_PORT` | `3306` | port on the **host**; change it if 3306 is taken |
 | `API_PORT` | `3000` (not in the file) | port on the host for the Docker API |
-| `JWT_SECRET` | placeholder | **required**, at least 32 random characters, or the API does not start |
+| `JWT_SECRET` | placeholder | **required**, at least 32 random characters, or the API does not start. With the example value it starts but logs a warning |
 | `JWT_ACCESS_TOKEN_TTL_MINUTES` | `15` | lifetime of access tokens |
 | `JWT_REFRESH_TOKEN_TTL_DAYS` | `7` | lifetime of refresh tokens |
 | `LOGIN_RATE_LIMIT`, `LOGIN_RATE_TTL_MS` | `5`, `60000` | login attempts per IP per window, then 429 |
@@ -55,6 +55,7 @@ All settings come from `.env` (never committed). Inside Docker, `DB_HOST`, `DB_P
 | `GEOCODING_BASE_URL` | empty (= public Nominatim) | point to your own Nominatim server if needed |
 | `GEOCODING_TIMEOUT_MS` | `3000` | time per geocoding try |
 | `SEED_USER_PASSWORD` | `Password123!` | password of the development accounts created by the seed |
+| `SEED_DEV_DATA` | `true` | `false` = the seed loads only the governorates, no development accounts or sample data |
 
 A random secret can be generated with:
 ```
@@ -67,11 +68,11 @@ people, also check:
 
 - [ ] All placeholders in `.env` changed (`JWT_SECRET`, `DB_PASSWORD`, `DB_ROOT_PASSWORD`,
       `SEED_USER_PASSWORD`, `GEOCODING_USER_AGENT`).
-- [ ] **The seed accounts.** The `migrate` service also runs the development seed, which creates
-      `admin@qaryati.local`, `verifier@qaryati.local` and `contributor@qaryati.local` with
-      `SEED_USER_PASSWORD`, on every `up`. For a real deployment, change the `command` of
-      `migrate` in `docker-compose.yml` to `npx prisma migrate deploy` (no seed), create the real
-      admin account, and disable or delete any seed accounts that already exist.
+- [ ] **The seed accounts.** The `migrate` service runs the seed on every `up`. With the default
+      `SEED_DEV_DATA=true` it creates `admin@qaryati.local`, `verifier@qaryati.local` and
+      `contributor@qaryati.local` with `SEED_USER_PASSWORD`. For a real deployment set
+      `SEED_DEV_DATA=false` (only the governorates are loaded), create the real admin account,
+      and disable or delete any seed accounts that already exist.
 - [ ] Do not publish the MySQL port to the internet: remove the `ports` entry of `mysql` in
       `docker-compose.yml` (the API reaches it through the Docker network).
 - [ ] Put a reverse proxy with HTTPS (for example Nginx or Caddy) in front of port 3000.

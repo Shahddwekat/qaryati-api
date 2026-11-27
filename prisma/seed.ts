@@ -87,6 +87,16 @@ async function main(): Promise<void> {
     governorateIds.set(g.nameEn, row.id);
   }
 
+  // Real deployments: SEED_DEV_DATA=false loads only the governorates (reference data)
+  // and skips the development accounts with their known password and the sample data.
+  if (process.env.SEED_DEV_DATA === 'false') {
+    console.log(
+      `Seeded ${GOVERNORATES.length} governorates. ` +
+        'SEED_DEV_DATA=false: development accounts and sample data skipped.',
+    );
+    return;
+  }
+
   // 2. Users
   const password = process.env.SEED_USER_PASSWORD ?? 'Password123!';
   const passwordHash = await bcrypt.hash(password, 10);
